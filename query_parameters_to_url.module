@@ -1,0 +1,502 @@
+<?php
+/**
+ * @file
+ * Query Arguments To URL module.
+ */
+
+define('QUERY_PARAMETERS_TO_URL_MODULE_NAME', 'query_parameters_to_url');
+define('QUERY_PARAMETERS_TO_URL_ENABLED', 'query_parameters_to_url_enabled');
+define('QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED', 'query_parameters_to_url_hooks_enabled');
+define('QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER', 'query_parameters_to_url_url_and_query_delimiter');
+define('QUERY_PARAMETERS_TO_URL_QUERY_VALUE_DELIMITER', 'query_parameters_to_url_query_value_delimiter');
+define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER', 'query_parameters_to_url_query_nested_key_delimiter');
+define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER', 'query_parameters_to_url_query_nested_value_delimiter');
+define('QUERY_PARAMETERS_TO_URL_PATH_REG_EXP', 'query_parameters_to_url_path_reg_exp');
+define('QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW', 'allow');
+define('QUERY_PARAMETERS_TO_URL_REWRITE_DENY', 'deny');
+define('QUERY_PARAMETERS_TO_URL_REWRITE_IGNORE', 'ignore');
+
+/**
+ * Implements hook_menu().
+ */
+function query_parameters_to_url_menu() {
+  $items = array();
+
+  $items['admin/config/search/query-parameters-to-url'] = array(
+    'title' => 'Query Parameters To URL settings',
+    'description' => 'Settings for rewriting query parameters into clean url components.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('query_parameters_to_url_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+    'weight' => 0,
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+}
+
+/**
+ * Recreate missing FPP entities form.
+ */
+function query_parameters_to_url_admin_settings() {
+  $form = array();
+
+  $form[QUERY_PARAMETERS_TO_URL_ENABLED] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable rewriting'),
+    '#description' => t('If checked, URLs containing query parameters will be rewritten to Clean URL components.'),
+    '#default_value' => variable_get(QUERY_PARAMETERS_TO_URL_ENABLED, TRUE),
+  );
+
+  $form[QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER] = array(
+    '#type' => 'textfield',
+    '#title' => t('URL and query parameters delimiter'),
+    '#description' => t('This string will be placed in the URL between real URL components and encoded query parameters.<br/><strong>Example:</strong> If the accessed URI is <string>events/all?category=1&page=2</string> the resulting clean URL will be <strong>events/all/p/category/1/page/2</strong>.'),
+    '#default_value' => query_parameters_to_url_url_query_delimiter(),
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form[QUERY_PARAMETERS_TO_URL_QUERY_VALUE_DELIMITER] = array(
+    '#type' => 'textfield',
+    '#title' => t('Query parameter multiple values delimiter'),
+    '#description' => t('This string will be used to delimit multiple values for a single query parameter.<br/><strong>Example:</strong> If the accessed URI is <strong>events/all?category_id[0]=1&category_id[1]=2&category_id[2]=3</strong> the resulting clearn URL will be <strong>events/all/p/category_id/1-2-3</strong>.'),
+    '#default_value' => query_parameters_to_url_multiple_values_delimiter(),
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form[QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER] = array(
+    '#type' => 'textfield',
+    '#title' => t('Query parameter nested key delimiter'),
+    '#description' => t('This string will be used to delimit nested keys for a parameter value.<br/><strong>Example:</strong> If the accessed URI is <strong>events?category_id[0][1][2][3][4]=5</strong> the resulting clearn URL will be <strong>events/all/p/category_id/0_1_2_3_4_5</strong>.'),
+    '#default_value' => query_parameters_to_url_nested_key(),
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form[QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER] = array(
+    '#type' => 'textfield',
+    '#title' => t('Query parameter nested values delimiter'),
+    '#description' => t('This string will be used to delimit nested parameter values from one another.<br/><strong>Example:</strong> If the accessed URI is <strong>events?category_id[0][1]=2&category_id[3][4]=5</strong> the resulting clearn URL will be <strong>events/all/p/category_id/0_1_2;3_4_5</strong>.'),
+    '#default_value' => query_parameters_to_url_nested_values_delimiter(),
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form[QUERY_PARAMETERS_TO_URL_PATH_REG_EXP] = array(
+    '#type' => 'textfield',
+    '#title' => t('Regular expression to match paths, where rewriting should be enabled'),
+    '#description' => t("While you can always reset this configuration and recover without permanent damage to your site, a change to this expression will break old bookmarked URLs. Change only when you know what you're doing.<br>Example: <strong>{(^home|^events|^news/all)}</strong>. To match all paths you can use: <strong>{.+}</strong>. To disable regular expression matching, leave it empty."),
+    '#default_value' => query_parameters_to_url_path_reg_exp(),
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form['hook_hint'] = array(
+    '#type' => 'item',
+    '#title' => t('Additional paths'),
+    '#description' => t('You can enable rewriting for additional paths, by implementing <strong>hook_query_parameters_to_url_rewrite_access()</strong>.'),
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form[QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable hook invocation to find additional paths'),
+    '#description' => t('If checked, <strong>hook_query_parameters_to_url_rewrite_access()</strong> implementations will be invoked, to allow support for additional rewrite paths.'),
+    '#default_value' => variable_get(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED, TRUE),
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Returns the variable value to be used for delimiting multiple simple values.
+ */
+function query_parameters_to_url_url_query_delimiter() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER, 'p');
+}
+
+/**
+ * Returns the variable value to be used for delimiting multiple simple values.
+ */
+function query_parameters_to_url_multiple_values_delimiter() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_QUERY_VALUE_DELIMITER, '-');
+}
+
+/**
+ * Returns the variable value to be used for nested keys.
+ */
+function query_parameters_to_url_nested_key() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER, '_');
+}
+
+/**
+ * Returns the variable value to be used for delimiting nested values.
+ */
+function query_parameters_to_url_nested_values_delimiter() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER, ';');
+}
+
+/**
+ * Returns the variable value to be used for the path regular expression.
+ */
+function query_parameters_to_url_path_reg_exp() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP, '');
+}
+
+/**
+ * Check whether given path should be rewritten.
+ */
+function query_parameters_to_url_path_should_be_rewritten($path = '', $options = array(), $original_path = NULL, $path_language = NULL) {
+  if (empty($path)) {
+    $path = current_path();
+  }
+
+  // Invoke hooks to see if any module allows or denies a rewrite for the given
+  // path.
+  $hooks_enabled = &drupal_static(__FUNCTION__, variable_get(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED, TRUE));
+  if ($hooks_enabled) {
+    $rewrites = module_invoke_all('query_parameters_to_url_rewrite_access', $path, $options, $original_path, $path_language);
+    if (in_array(QUERY_PARAMETERS_TO_URL_REWRITE_DENY, $rewrites, TRUE)) {
+      return FALSE;
+    }
+    elseif (in_array(QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW, $rewrites, TRUE)) {
+      return TRUE;
+    }
+  }
+
+  // Use configured Reg Exp to check if path should be rewritten.
+  $pattern = query_parameters_to_url_path_reg_exp();
+  $regexp_allow_result = FALSE;
+  if (!empty($pattern) && preg_match($pattern, $path, $matches)) {
+    $regexp_allow_result = TRUE;
+  }
+
+  return $regexp_allow_result;
+}
+
+/**
+ * Encodes an array of nested query parameters into a clean string.
+ *
+ * Example:
+ *  - an equivalent array of events?a[0][1][2]=3&b[4][5]=6&c=7 will become
+ *  - events/p/a/0_1_2_3/b/4_5_6/c/7
+ */
+function query_parameters_to_url_encode_query_parameter($value, $parents = '', $depth = 0) {
+  $nested_key = query_parameters_to_url_nested_key();
+  $nested_value = query_parameters_to_url_nested_values_delimiter();
+  $encoded = '';
+
+  if (is_array($value)) {
+    // Recursively goes through the array, prefixing the value with the key
+    // parents.
+    foreach ($value as $key => $element) {
+      $next_parent = $parents . $key . $nested_key;
+      $encoded .= query_parameters_to_url_encode_query_parameter($element, $next_parent, $depth+1);
+    }
+  }
+  elseif (!empty($value)) {
+    $encoded .= $parents;
+    $encoded .= $value;
+    if (!empty($parents)) {
+      $encoded .= $nested_value;
+    }
+  }
+
+  // Trim the last delimiter.
+  if ($depth == 0) {
+    $encoded = rtrim($encoded, $nested_value);
+  }
+
+  return $encoded;
+}
+
+/**
+ * Decodes an encoded string into an array of query parameters.
+ *
+ * Example:
+ *  - events/p/a/0_1_2_3/b/4_5_6/c/7 will become an array equivalent to
+ *  - events?a[0][1][2]=3&b[4][5]=6&c=7
+ */
+function query_parameters_to_url_decode_encoded_query_parameter($encoded) {
+  $nested_key = query_parameters_to_url_nested_key();
+  $nested_value = query_parameters_to_url_nested_values_delimiter();
+  $decoded = array();
+
+  $parameters = explode($nested_value, $encoded);
+
+  foreach ($parameters as $parameter) {
+    $parameter_parts = explode($nested_key, $parameter);
+    $parameter_value = array_pop($parameter_parts);
+
+    // The conditional is for validation purposes, so it doesn't throw a fatal
+    // error. Scary.
+    if (!empty($parameter_parts)) {
+      drupal_array_set_nested_value($decoded, $parameter_parts, $parameter_value);
+    }
+  }
+
+  return $decoded;
+}
+
+/**
+ * Checks whether an array has nested arrays as values.
+ */
+function query_parameters_to_url_array_has_nested_query_arguments($query_parameters) {
+  // If empty, or is not array, then it has no nested parameters.
+  if (empty($query_parameters) || !is_array($query_parameters)) {
+    return FALSE;
+  }
+
+  // If at least one array element is an array, then it's a nested parameter.
+  foreach ($query_parameters as $parameter) {
+    if (is_array($parameter)) {
+      return TRUE;
+    }
+  }
+
+  // An array of simple values.
+  return FALSE;
+}
+
+/**
+ * Checks whether an encoded string has nested query arguments.
+ */
+function query_parameters_to_url_encoded_string_has_nested_query_arguments($string) {
+  // Simple check if delimiter is present.
+  $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
+  if (strpos($string, $nested_values_delimiter) !== FALSE) {
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+/**
+ * Implements hook_url_inbound_alter().
+ */
+function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path_language) {
+  if (variable_get(QUERY_PARAMETERS_TO_URL_ENABLED, TRUE)) {
+    $parts = explode('/', $path);
+    $url_and_query_delimiter = query_parameters_to_url_url_query_delimiter();
+
+    // Check if this is a path we should rewrite.
+    $rewrite = query_parameters_to_url_path_should_be_rewritten($path, array(), $original_path, $path_language);
+
+    if ($rewrite && ($p_key = array_search($url_and_query_delimiter, $parts)) !== FALSE) {
+      $last_part_key = count($parts);
+
+      // Extract all the path parts that are actually encoded query parameters.
+      $extracted_query_parameters = array();
+      $query_value_delimiter = query_parameters_to_url_multiple_values_delimiter();
+      for ($i = $p_key + 1; $i < $last_part_key; $i += 2) {
+        $query_key = $parts[$i];
+
+        // Validation that there are actually pairs of key-value.
+        if (!isset($parts[$i+1])) {
+          continue;
+        }
+        $query_values = $parts[$i+1];
+
+        // Choose which decoding type to use.
+        $is_nested = query_parameters_to_url_encoded_string_has_nested_query_arguments($query_values);
+        if ($is_nested) {
+          // Use complete decoding.
+          $query_parameter_values_array = query_parameters_to_url_decode_encoded_query_parameter($query_values);
+        }
+        else {
+          // Use simple decoding.
+          // Multiple query parameter values are imploded, so we explode them.
+          $query_parameter_values_array = explode($query_value_delimiter, $query_values);
+        }
+
+        $extracted_query_parameters[$query_key] = $query_parameter_values_array;
+      }
+
+      if (!empty($extracted_query_parameters)) {
+        // If there were any query parameters imploded in the URL, put them
+        // into $_GET, as if they were originally there.
+        $_GET += $extracted_query_parameters;
+
+        // Get a copy of all query parameters except for q.
+        $query_parameters_without_q = drupal_get_query_parameters();
+
+        // Remove the encoded query parameters in the path, and set it as the
+        // inbound path.
+        $path = implode('/', array_slice($parts, 0, $p_key));
+        // @TODO Should this also replace $_GET['q'] with $path.
+
+        // Mark that the inbound URL was altered, so that hook_init doesn't do
+        // an endless redirect loop.
+        $path_altered = &drupal_static(__FUNCTION__, FALSE);
+        $path_altered = TRUE;
+
+        // Build new REQUEST_URI, because certain modules extract the query
+        // parameters from inside it, instead of $_GET. One example is Better
+        // Exposed filters.
+        // So the new REQUEST_URI will contain the new inbound path,
+        // concatenated with all the query parameters present.
+        // @ignore security_12
+        if (isset($_SERVER['REQUEST_URI'])) {
+          $query_string = http_build_query($query_parameters_without_q, '');
+          $new_request_uri = '/' . $path . '?' . $query_string;
+          // @ignore security_12
+          $_SERVER['REQUEST_URI'] = $new_request_uri;
+
+          if (isset($_SERVER['QUERY_STRING'])) {
+            $_SERVER['QUERY_STRING'] = $query_string;
+          }
+
+          if (isset($_SERVER['REDIRECT_QUERY_STRING'])) {
+            $_SERVER['REDIRECT_QUERY_STRING'] = $query_string;
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_url_outbound_alter().
+ */
+function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original_path) {
+  if (variable_get(QUERY_PARAMETERS_TO_URL_ENABLED, TRUE)) {
+
+    // Check if this is a path we should rewrite.
+    $rewrite = query_parameters_to_url_path_should_be_rewritten($path, $options, $original_path);
+    if ($rewrite) {
+
+      // Check if link has any query parameters set.
+      if (isset($options['query']) && !empty($options['query'])) {
+        $query_parameters_components = '';
+
+        // The new path parts array, containing the the query parameters, will
+        // be delimited with a special character, so we know where the real URL
+        // components start, and where the encoded query parameters start.
+        $url_and_query_delimiter = query_parameters_to_url_url_query_delimiter();
+        $new_path = $path . '/' . $url_and_query_delimiter;
+
+        $query_value_delimiter = query_parameters_to_url_multiple_values_delimiter();
+        foreach ($options['query'] as $key => $values) {
+
+          // Choose which encoding type to use.
+          $is_nested = query_parameters_to_url_array_has_nested_query_arguments($values);
+          if ($is_nested) {
+            // Use complete encoding.
+            $encoded_query_parameter_values = query_parameters_to_url_encode_query_parameter($values);
+          }
+          else {
+            // Use simple encoding.
+            // Multiple value parameters should be imploded.
+            if (is_array($values)) {
+              $encoded_query_parameter_values = implode($query_value_delimiter, $values);
+            }
+            else {
+              $encoded_query_parameter_values = $values;
+            }
+          }
+
+          // Add the encoded query parameter values to the end of the path, only
+          // if it actually has any values.
+          if (!empty($encoded_query_parameter_values)) {
+            $query_parameters_components .= '/' . $key . '/' . $encoded_query_parameter_values;
+          }
+
+          // Unset the query parameter that was encoded in the URL, so it's not
+          // included in the generated link.
+          unset($options['query'][$key]);
+        }
+
+        // If there were any query parameters to encode, replace the original
+        // path with a new path that contains the encoded query parameters.
+        if (!empty($query_parameters_components)) {
+          $path = $new_path . $query_parameters_components;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_init().
+ *
+ * There are situations when we can't alter a link, like a submitted Views
+ * exposed filter, which sets the query parameters via a form,
+ * with the form action set to GET. In those cases we will do a redirect to the
+ * Clean URL, only the specified paths.
+ */
+function query_parameters_to_url_init() {
+  if (variable_get(QUERY_PARAMETERS_TO_URL_ENABLED, TRUE)) {
+    // Check whether the path was altered in inbound alter function, which means
+    // we shouldn't rewrite the URL again.
+    $path_altered = &drupal_static('query_parameters_to_url_url_inbound_alter', FALSE);
+    if (!$path_altered) {
+
+      // Get current path and query parameters, and prepare to send them to the
+      // outbound alter hook, so it tries and rewrites a path with query
+      // parameters into a new clean URL with encoded query parameters.
+      $original_path = current_path();
+      $original_query_parameters = drupal_get_query_parameters();
+      $path = $original_path;
+      $options = array(
+        'query' => $original_query_parameters,
+      );
+
+      // Try and rewrite the path.
+      query_parameters_to_url_url_outbound_alter($path, $options, $path);
+
+      // If the path indeed was changed, we redirect to the new path.
+      if ($path != $original_path) {
+        $url = url($path, $options);
+
+        // Replace possibly percent-encoded characters with the actual chars.
+        $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
+        $nested_key_delimiter = query_parameters_to_url_nested_key();
+        $url = str_replace(rawurlencode($nested_values_delimiter), $nested_values_delimiter, $url);
+        $url = str_replace(rawurlencode($nested_key_delimiter), $nested_key_delimiter, $url);
+
+        // Redirect protection in case something goes horribly wrong. Inspired
+        // by redirect module.
+        $session_id = session_id();
+        if (flood_is_allowed('query_parameters_to_url_init_redirect', 5, 15, $session_id ? $session_id : NULL)) {
+          flood_register_event('query_parameters_to_url_init_redirect', 15, $session_id ? $session_id : NULL);
+        }
+        else {
+          watchdog(QUERY_PARAMETERS_TO_URL_MODULE_NAME, 'Infinite redirect loop stopped.');
+          drupal_set_message(t('Oops, looks like this request tried to create an infinite loop.'));
+          return;
+        }
+
+        // Inspired by redirect module, tell the browser where to redirect
+        // and why.
+        drupal_add_http_header('Location', $url);
+        drupal_add_http_header('Status', t('302 Found'));
+
+        // @TODO Consider adding caching like redirect module does?
+
+        // Exit Drupal.
+        drupal_exit($url);
+      }
+    }
+  }
+}
