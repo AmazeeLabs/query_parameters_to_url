@@ -1,5 +1,3 @@
 name = Query Parameters To URL
 description = Rewrites URL query parameters into Clean URL components on specified paths.
 core = 7.x
-version = 7.x-1.0
-project = query_parameters_to_url
