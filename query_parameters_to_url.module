@@ -283,9 +283,11 @@ function query_parameters_to_url_array_has_nested_query_arguments($query_paramet
  * Checks whether an encoded string has nested query arguments.
  */
 function query_parameters_to_url_encoded_string_has_nested_query_arguments($string) {
-  // Simple check if delimiter is present.
+  // Simple check if delimiters are present.
   $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
-  if (strpos($string, $nested_values_delimiter) !== FALSE) {
+  $nested_key_delimiter = query_parameters_to_url_nested_key();
+
+  if (strpos($string, $nested_values_delimiter) !== FALSE || strpos($string, $nested_key_delimiter) !== FALSE) {
     return TRUE;
   }
 
@@ -361,6 +363,7 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
           $query_string = http_build_query($query_parameters_without_q, '');
           $new_request_uri = '/' . $path . '?' . $query_string;
           // @ignore security_12
+          // @TODO Is this really a sec hole? If so what can we do about it?
           $_SERVER['REQUEST_URI'] = $new_request_uri;
 
           if (isset($_SERVER['QUERY_STRING'])) {
