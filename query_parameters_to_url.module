@@ -346,7 +346,6 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // Remove the encoded query parameters in the path, and set it as the
         // inbound path.
         $path = implode('/', array_slice($parts, 0, $p_key));
-        // @TODO Should this also replace $_GET['q'] with $path.
 
         // Mark that the inbound URL was altered, so that hook_init doesn't do
         // an endless redirect loop.
@@ -495,10 +494,34 @@ function query_parameters_to_url_init() {
         drupal_add_http_header('Location', $url);
         drupal_add_http_header('Status', t('302 Found'));
 
-        // @TODO Consider adding caching like redirect module does?
+        // If cache is disabled, just exit.
+        $cache_enabled = variable_get('cache', 0);
+        $is_cache_able = drupal_page_is_cacheable();
+        if (!$cache_enabled || !$is_cache_able) {
+          drupal_exit($url);
+        }
 
-        // Exit Drupal.
-        drupal_exit($url);
+        // Otherwise do the same things that drupal_exit does, and serve from
+        // cache.
+        if (drupal_get_bootstrap_phase() == DRUPAL_BOOTSTRAP_FULL) {
+          if (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update') {
+            module_invoke_all('exit', $url);
+          }
+
+          drupal_session_commit();
+
+          if ($cache_enabled) {
+            // We must output something to allow the request to be cached.
+            echo ' ';
+            if ($cache = drupal_page_set_cache()) {
+              // When caching this redirect for the first time we still need
+              // to ensure that the correct cache headers are sent.
+              // @see drupal_page_footer()
+              drupal_serve_page_from_cache($cache);
+            }
+          }
+        }
+        exit;
       }
     }
   }
