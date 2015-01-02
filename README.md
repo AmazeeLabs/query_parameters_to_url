@@ -17,8 +17,8 @@ An example of a dirty URL like that could be:
 
 Using this module you can transform the URL into:
 
-[http://example-site.com/events/p/field_category_id/100-101/field_author_name/John/field_author_surname/Doe]
-(http://example-site.com/events/p/field_category_id/100-101/field_author_name/John/field_author_surname/Doe)
+[http://example-site.com/events/p/field_category_id/100--101/field_author_name/John/field_author_surname/Doe]
+(http://example-site.com/events/p/field_category_id/100--101/field_author_name/John/field_author_surname/Doe)
 
 Isn't that a joy to look at?
 
@@ -86,9 +86,9 @@ Considerations
  used.
 * When nested query arguments arrays are used, like [(/events?a[0][1][2]=3&a[3]=4)](/events?a[0][1][2]=3&a[3]=4), 
  the resulting clean URL will be a bit less
- pretty because of the necessity for a proper encoding -> [(/events/p/a/0_1_2_3;3_4)](/events/p/a/0_1_2_3;3_4)
+ pretty because of the necessity for a proper encoding -> [(/events/p/a/0__1__2__3;3__4)](/events/p/a/0__1__2__3;3__4)
 
 TODOs
 -----
-* Consider if $_GET['q'] should also be assigned the rewritten path.
-* Consider if redirect caching should be added like redirect module does it.
+* Add ability to alter the parameters keys so they can be shorter.
+* Add ability to alter the final encoded / decoded string that represents the query parameters.
