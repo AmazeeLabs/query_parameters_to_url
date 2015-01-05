@@ -8,7 +8,6 @@ define('QUERY_PARAMETERS_TO_URL_MODULE_NAME', 'query_parameters_to_url');
 define('QUERY_PARAMETERS_TO_URL_ENABLED', 'query_parameters_to_url_enabled');
 define('QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED', 'query_parameters_to_url_hooks_enabled');
 define('QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER', 'query_parameters_to_url_url_and_query_delimiter');
-define('QUERY_PARAMETERS_TO_URL_QUERY_VALUE_DELIMITER', 'query_parameters_to_url_query_value_delimiter');
 define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER', 'query_parameters_to_url_query_nested_key_delimiter');
 define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER', 'query_parameters_to_url_query_nested_value_delimiter');
 define('QUERY_PARAMETERS_TO_URL_PATH_REG_EXP', 'query_parameters_to_url_path_reg_exp');
@@ -51,20 +50,8 @@ function query_parameters_to_url_admin_settings() {
   $form[QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER] = array(
     '#type' => 'textfield',
     '#title' => t('URL and query parameters delimiter'),
-    '#description' => t('This string will be placed in the URL between real URL components and encoded query parameters.<br/><strong>Example:</strong> If the accessed URI is <string>events/all?category=1&page=2</string> the resulting clean URL will be <strong>events/all/p/category/1/page/2</strong>.'),
+    '#description' => t('This string will be placed in the URL, between real URL components and encoded query parameters.<br/><strong>Example:</strong> If the accessed URI is <string>events/all?category=1&page=2</string> the resulting clean URL will be <strong>events/all/p/category/1/page/2</strong>.'),
     '#default_value' => query_parameters_to_url_url_query_delimiter(),
-    '#states' => array(
-      'enabled' => array(
-        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
-      ),
-    ),
-  );
-
-  $form[QUERY_PARAMETERS_TO_URL_QUERY_VALUE_DELIMITER] = array(
-    '#type' => 'textfield',
-    '#title' => t('Query parameter multiple values delimiter'),
-    '#description' => t('This string will be used to delimit multiple values for a single query parameter.<br/><strong>Example:</strong> If the accessed URI is <strong>events/all?category_id[0]=1&category_id[1]=2&category_id[2]=3</strong> the resulting clearn URL will be <strong>events/all/p/category_id/1--2--3</strong>.'),
-    '#default_value' => query_parameters_to_url_multiple_values_delimiter(),
     '#states' => array(
       'enabled' => array(
         ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
@@ -87,7 +74,7 @@ function query_parameters_to_url_admin_settings() {
   $form[QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER] = array(
     '#type' => 'textfield',
     '#title' => t('Query parameter nested values delimiter'),
-    '#description' => t('This string will be used to delimit nested parameter values from one another.<br/><strong>Example:</strong> If the accessed URI is <strong>events?category_id[0][1]=2&category_id[3][4]=5</strong> the resulting clearn URL will be <strong>events/all/p/category_id/0__1__2;3__4__5</strong>.'),
+    '#description' => t('This string will be used to delimit nested parameter values from one another.<br/><strong>Example:</strong> If the accessed URI is <strong>events?category_id[0][1]=2&category_id[3][4]=5</strong> the resulting clearn URL will be <strong>events/all/p/category_id/0__1__2--3__4__5</strong>.'),
     '#default_value' => query_parameters_to_url_nested_values_delimiter(),
     '#states' => array(
       'enabled' => array(
@@ -137,13 +124,6 @@ function query_parameters_to_url_url_query_delimiter() {
 }
 
 /**
- * Returns the variable value to be used for delimiting multiple simple values.
- */
-function query_parameters_to_url_multiple_values_delimiter() {
-  return variable_get(QUERY_PARAMETERS_TO_URL_QUERY_VALUE_DELIMITER, '--');
-}
-
-/**
  * Returns the variable value to be used for nested keys.
  */
 function query_parameters_to_url_nested_key() {
@@ -154,7 +134,7 @@ function query_parameters_to_url_nested_key() {
  * Returns the variable value to be used for delimiting nested values.
  */
 function query_parameters_to_url_nested_values_delimiter() {
-  return variable_get(QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER, ';');
+  return variable_get(QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER, '--');
 }
 
 /**

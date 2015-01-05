@@ -17,8 +17,8 @@ An example of a dirty URL like that could be:
 
 Using this module you can transform the URL into:
 
-[http://example-site.com/events/p/field_category_id/100--101/field_author_name/John/field_author_surname/Doe]
-(http://example-site.com/events/p/field_category_id/100--101/field_author_name/John/field_author_surname/Doe)
+[http://example-site.com/events/p/field_category_id/0__100--1__101/field_author_name/John/field_author_surname/Doe]
+(http://example-site.com/events/p/field_category_id/0__100--1__101/field_author_name/John/field_author_surname/Doe)
 
 Isn't that a joy to look at?
 
@@ -64,29 +64,29 @@ The module uses three hooks to achieve its behavior:
 * hook_url_inbound_alter().
 * hook_init().
 
-The first one is used to inspect links that go through l() or url(), check if they have query arguments, and rewrite the
-url into a cleaner one.
+The first one is used to inspect links that go through l() or url(), check if they have query parameters, 
+and rewrite the query parameters into clean URL components.
 
 The second one does the opposite, when a user accesses a URL in the browser, it checks if the url contains any encoded
 query parameters, and sets them back into $_GET. Because some modules (Better Exposed Filters for example) 
 don't use the $_GET variable directly, and instead use request_uri(), the new path is also set into 
 $_SERVER['REQUEST_URI'], as well as a few more server global variables.
 
-The last hook is the most important one, because it is the one that makes clean urls for Views Exposed Filters. Because
-Views uses a <form> tag with action set to $_GET, there is no way to rewrite the URL, except maybe in Javascript. 
-That's why in hook_init() we check whether the entered URL has query arguments, and if it does, we simply issue a
+The last hook is the most important one, because it is the one that makes clean urls work for Views Exposed Filters. 
+Because Views uses a <form> tag with the action set to GET, there is no way to rewrite the URL, except in Javascript. 
+That's why in hook_init() we check whether the entered URL has query parameters, and if it does, we simply issue a
 redirect to the Clean URL version (using a Location header).
 
 
 Considerations
 --------------
-* Because the module uses the outbound hook, performance of the site can be slightly slower, depending on the number of
- links that will be rewritten. But it is a necessary slow-down.
+* Because the module uses the url outbound hook, performance of the site can be slightly slower, depending on the 
+ number of links that will be rewritten. This is a necessary slow-down, so that the module can actually work.
 * To speed up things a bit, you can disable "additional path" hook executions, so that only the regular expression is
  used.
-* When nested query arguments arrays are used, like [(/events?a[0][1][2]=3&a[3]=4)](/events?a[0][1][2]=3&a[3]=4), 
- the resulting clean URL will be a bit less
- pretty because of the necessity for a proper encoding -> [(/events/p/a/0__1__2__3;3__4)](/events/p/a/0__1__2__3;3__4)
+* When nested query parameter arrays are used, like [(/events?a[0][1][2]=3&a[3]=4)](/events?a[0][1][2]=3&a[3]=4), 
+ the resulting clean URL has a lot of nested delimiters [(/events/p/a/0__1__2__3--3__4)](/events/p/a/0__1__2__3--3__4),
+ which looks a bit ugly, but is necessary to decode the URL back into query parameters.
 
 TODOs
 -----
