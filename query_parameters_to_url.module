@@ -453,7 +453,7 @@ function query_parameters_to_url_init() {
         // Redirect protection in case something goes horribly wrong. Inspired
         // by redirect module.
         $session_id = session_id();
-        if (flood_is_allowed('query_parameters_to_url_init_redirect', 5, 15, $session_id ? $session_id : NULL)) {
+        if (flood_is_allowed('query_parameters_to_url_init_redirect', 10, 15, $session_id ? $session_id : NULL)) {
           flood_register_event('query_parameters_to_url_init_redirect', 15, $session_id ? $session_id : NULL);
         }
         else {
