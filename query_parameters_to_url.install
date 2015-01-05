@@ -20,3 +20,35 @@ function query_parameters_to_url_uninstall() {
   variable_del(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP);
   variable_del(QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD);
 }
+
+/**
+ * Implements hook_requirements().
+ */
+function query_parameters_to_url_requirements($phase) {
+  $requirements = array();
+  // Ensure translations don't break during installation.
+  $t = get_t();
+
+  if ($phase == 'runtime') {
+    // Check if clean urls are enabled.
+    $clean_url = variable_get('clean_url', FALSE);
+    if ($clean_url) {
+      $requirements['query_parameters_to_url_clean_urls'] = array(
+        'title' => $t('Query Parameters to Url: Clean URLs'),
+        'value' => 'Enabled',
+        'severity' => REQUIREMENT_OK,
+      );
+    }
+    else {
+      $clean_url_link = l($t('Clean URLs'), 'admin/config/search/clean-urls');
+      $requirements['query_parameters_to_url_clean_urls'] = array(
+        'title' => $t('Query Parameters to Url: Clean URLs'),
+        'description' => $t('Warning: !link should be enabled so that the module can properly function.', array('!link' => $clean_url_link)),
+        'value' => 'Not Enabled',
+        'severity' => REQUIREMENT_WARNING,
+      );
+    }
+  }
+
+  return $requirements;
+}
