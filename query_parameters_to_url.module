@@ -7,10 +7,12 @@
 define('QUERY_PARAMETERS_TO_URL_MODULE_NAME', 'query_parameters_to_url');
 define('QUERY_PARAMETERS_TO_URL_ENABLED', 'query_parameters_to_url_enabled');
 define('QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED', 'query_parameters_to_url_hooks_enabled');
+define('QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED', 'query_parameters_to_url_redirect_protection_enabled');
 define('QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER', 'query_parameters_to_url_url_and_query_delimiter');
 define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER', 'query_parameters_to_url_query_nested_key_delimiter');
 define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER', 'query_parameters_to_url_query_nested_value_delimiter');
 define('QUERY_PARAMETERS_TO_URL_PATH_REG_EXP', 'query_parameters_to_url_path_reg_exp');
+define('QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD', 'query_parameters_to_url_redirect_threshold');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW', 'allow');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_DENY', 'deny');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_IGNORE', 'ignore');
@@ -40,6 +42,14 @@ function query_parameters_to_url_menu() {
 function query_parameters_to_url_admin_settings() {
   $form = array();
 
+  $default_options = array(
+    '#states' => array(
+      'enabled' => array(
+        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
+      ),
+    )
+  );
+
   $form[QUERY_PARAMETERS_TO_URL_ENABLED] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable rewriting'),
@@ -52,66 +62,63 @@ function query_parameters_to_url_admin_settings() {
     '#title' => t('URL and query parameters delimiter'),
     '#description' => t('This string will be placed in the URL, between real URL components and encoded query parameters.<br/><strong>Example:</strong> If the accessed URI is <string>events/all?category=1&page=2</string> the resulting clean URL will be <strong>events/all/p/category/1/page/2</strong>.'),
     '#default_value' => query_parameters_to_url_url_query_delimiter(),
-    '#states' => array(
-      'enabled' => array(
-        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
-      ),
-    ),
-  );
+  ) + $default_options;
 
   $form[QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER] = array(
     '#type' => 'textfield',
     '#title' => t('Query parameter nested key delimiter'),
     '#description' => t('This string will be used to delimit nested keys for a parameter value.<br/><strong>Example:</strong> If the accessed URI is <strong>events?category_id[0][1][2][3][4]=5</strong> the resulting clearn URL will be <strong>events/all/p/category_id/0__1__2__3__4__5</strong>.'),
     '#default_value' => query_parameters_to_url_nested_key(),
-    '#states' => array(
-      'enabled' => array(
-        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
-      ),
-    ),
-  );
+  ) + $default_options;
 
   $form[QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER] = array(
     '#type' => 'textfield',
     '#title' => t('Query parameter nested values delimiter'),
     '#description' => t('This string will be used to delimit nested parameter values from one another.<br/><strong>Example:</strong> If the accessed URI is <strong>events?category_id[0][1]=2&category_id[3][4]=5</strong> the resulting clearn URL will be <strong>events/all/p/category_id/0__1__2--3__4__5</strong>.'),
     '#default_value' => query_parameters_to_url_nested_values_delimiter(),
-    '#states' => array(
-      'enabled' => array(
-        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
-      ),
-    ),
-  );
+  ) + $default_options;
 
   $form[QUERY_PARAMETERS_TO_URL_PATH_REG_EXP] = array(
     '#type' => 'textfield',
     '#title' => t('Regular expression to match paths, where rewriting should be enabled'),
     '#description' => t("While you can always reset this configuration and recover without permanent damage to your site, a change to this expression will break old bookmarked URLs. Change only when you know what you're doing.<br>Example: <strong>{(^home|^events|^news/all)}</strong>. To match all paths you can use: <strong>{.+}</strong>. To disable regular expression matching, leave it empty."),
     '#default_value' => query_parameters_to_url_path_reg_exp(),
-    '#states' => array(
-      'enabled' => array(
-        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
-      ),
-    ),
+  ) + $default_options;
+
+  $form['advanced_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Advanced settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#tree' => FALSE,
   );
 
-  $form['hook_hint'] = array(
+  $form['advanced_settings']['hook_hint'] = array(
     '#type' => 'item',
     '#title' => t('Additional paths'),
     '#description' => t('You can enable rewriting for additional paths, by implementing <strong>hook_query_parameters_to_url_rewrite_access()</strong>.'),
-    '#states' => array(
-      'enabled' => array(
-        ':input[name="' . QUERY_PARAMETERS_TO_URL_ENABLED . '"]' => array('checked' => TRUE),
-      ),
-    ),
-  );
+  ) + $default_options;
 
-  $form[QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED] = array(
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable hook invocation to find additional paths'),
     '#description' => t('If checked, <strong>hook_query_parameters_to_url_rewrite_access()</strong> implementations will be invoked, to allow support for additional rewrite paths.'),
-    '#default_value' => variable_get(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED, TRUE),
-  );
+    '#default_value' => query_parameters_to_url_hooks_enabled(),
+  ) + $default_options;
+
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable protection against redirect loop'),
+    '#description' => t('If checked, each redirect in hook_init() is logged, to protect against any possible redirect loops, just like redirect module does it.'),
+    '#default_value' => query_parameters_to_url_redirect_protection_enabled(),
+  ) + $default_options;
+
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED] = array(
+    '#type' => 'textfield',
+    '#title' => t('Redirect loop threshold'),
+    '#description' => t('How many redirects are allowed in 15 seconds, before it is considered that a redirect loop has occurred.'),
+    '#default_value' => query_parameters_to_url_redirect_threshold(),
+  ) + $default_options;
 
   return system_settings_form($form);
 }
@@ -145,6 +152,27 @@ function query_parameters_to_url_path_reg_exp() {
 }
 
 /**
+ * Returns the variable value if url rewrite hooks are enabled.
+ */
+function query_parameters_to_url_hooks_enabled() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED, TRUE);
+}
+
+/**
+ * Returns the variable value if redirect loop protection is enabled.
+ */
+function query_parameters_to_url_redirect_protection_enabled() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED, TRUE);
+}
+
+/**
+ * Returns the variable value of the redirect threshold.
+ */
+function query_parameters_to_url_redirect_threshold() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD, 10);
+}
+
+/**
  * Check whether given path should be rewritten.
  */
 function query_parameters_to_url_path_should_be_rewritten($path = '', $options = array(), $original_path = NULL, $path_language = NULL) {
@@ -154,7 +182,7 @@ function query_parameters_to_url_path_should_be_rewritten($path = '', $options =
 
   // Invoke hooks to see if any module allows or denies a rewrite for the given
   // path.
-  $hooks_enabled = &drupal_static(__FUNCTION__, variable_get(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED, TRUE));
+  $hooks_enabled = &drupal_static(__FUNCTION__, query_parameters_to_url_hooks_enabled());
   if ($hooks_enabled) {
     $rewrites = module_invoke_all('query_parameters_to_url_rewrite_access', $path, $options, $original_path, $path_language);
     if (in_array(QUERY_PARAMETERS_TO_URL_REWRITE_DENY, $rewrites, TRUE)) {
@@ -180,7 +208,7 @@ function query_parameters_to_url_path_should_be_rewritten($path = '', $options =
  *
  * Example:
  *  - an equivalent array of events?a[0][1][2]=3&b[4][5]=6&c=7 will become
- *  - events/p/a/0_1_2_3/b/4_5_6/c/7
+ *  - events/p/a/0__1__2__3/b/4__5__6/c/7
  */
 function query_parameters_to_url_encode_query_parameter($value, $parents = '', $depth = 0) {
   $nested_key = query_parameters_to_url_nested_key();
@@ -215,7 +243,7 @@ function query_parameters_to_url_encode_query_parameter($value, $parents = '', $
  * Decodes an encoded string into an array of query parameters.
  *
  * Example:
- *  - events/p/a/0_1_2_3/b/4_5_6/c/7 will become an array equivalent to
+ *  - events/p/a/0__1__2__3/b/4__5__6/c/7 will become an array equivalent to
  *  - events?a[0][1][2]=3&b[4][5]=6&c=7
  */
 function query_parameters_to_url_decode_encoded_query_parameter($encoded) {
@@ -342,8 +370,8 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         if (isset($_SERVER['REQUEST_URI'])) {
           $query_string = http_build_query($query_parameters_without_q, '');
           $new_request_uri = '/' . $path . '?' . $query_string;
-          // @ignore security_12
           // @TODO Is this really a sec hole? If so what can we do about it?
+          // @ignore security_12
           $_SERVER['REQUEST_URI'] = $new_request_uri;
 
           if (isset($_SERVER['QUERY_STRING'])) {
@@ -450,15 +478,8 @@ function query_parameters_to_url_init() {
         $url = url($path, $options);
         $url = query_parameters_to_url_replace_url_encoded_delimiters($url);
 
-        // Redirect protection in case something goes horribly wrong. Inspired
-        // by redirect module.
-        $session_id = session_id();
-        if (flood_is_allowed('query_parameters_to_url_init_redirect', 10, 15, $session_id ? $session_id : NULL)) {
-          flood_register_event('query_parameters_to_url_init_redirect', 15, $session_id ? $session_id : NULL);
-        }
-        else {
-          watchdog(QUERY_PARAMETERS_TO_URL_MODULE_NAME, 'Infinite redirect loop stopped.');
-          drupal_set_message(t('Oops, looks like this request tried to create an infinite loop.'));
+        $exit_early = query_parameters_to_url_protect_redirect_loop();
+        if ($exit_early) {
           return;
         }
 
@@ -467,35 +488,67 @@ function query_parameters_to_url_init() {
         drupal_add_http_header('Location', $url);
         drupal_add_http_header('Status', t('302 Found'));
 
-        // If cache is disabled, just exit.
-        $cache_enabled = variable_get('cache', 0);
-        $is_cache_able = drupal_page_is_cacheable();
-        if (!$cache_enabled || !$is_cache_able) {
-          drupal_exit($url);
-        }
-
-        // Otherwise do the same things that drupal_exit does, and serve from
-        // cache.
-        if (drupal_get_bootstrap_phase() == DRUPAL_BOOTSTRAP_FULL) {
-          if (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update') {
-            module_invoke_all('exit', $url);
-          }
-
-          drupal_session_commit();
-
-          if ($cache_enabled) {
-            // We must output something to allow the request to be cached.
-            echo ' ';
-            if ($cache = drupal_page_set_cache()) {
-              // When caching this redirect for the first time we still need
-              // to ensure that the correct cache headers are sent.
-              // @see drupal_page_footer()
-              drupal_serve_page_from_cache($cache);
-            }
-          }
-        }
-        exit;
+        // Output redirect, and cache it if necessary.
+        query_parameters_to_url_output_and_cache_redirect($url);
       }
     }
   }
+}
+
+/**
+ * Protects against a redirect loop.
+ */
+function query_parameters_to_url_protect_redirect_loop() {
+  $exit_early = FALSE;
+  if (query_parameters_to_url_redirect_protection_enabled()) {
+    // Redirect protection in case something goes horribly wrong. Inspired
+    // by redirect module.
+    $session_id = session_id();
+    if (flood_is_allowed('query_parameters_to_url_init_redirect', 10, 15, $session_id ? $session_id : NULL)) {
+      flood_register_event('query_parameters_to_url_init_redirect', 15, $session_id ? $session_id : NULL);
+      $exit_early = FALSE;
+    }
+    else {
+      watchdog(QUERY_PARAMETERS_TO_URL_MODULE_NAME, 'Infinite redirect loop stopped.');
+      drupal_set_message(t('Oops, looks like this request tried to create an infinite loop.'));
+      $exit_early = TRUE;
+    }
+  }
+
+  return $exit_early;
+}
+
+/**
+ * Outputs the redirect, and caches the response.
+ */
+function query_parameters_to_url_output_and_cache_redirect($url) {
+  // If cache is disabled, just exit.
+  $cache_enabled = variable_get('cache', 0);
+  $is_cache_able = drupal_page_is_cacheable();
+  if (!$cache_enabled || !$is_cache_able) {
+    drupal_exit($url);
+  }
+
+  // Otherwise do the same things that drupal_exit does, and serve from
+  // cache.
+  if (drupal_get_bootstrap_phase() == DRUPAL_BOOTSTRAP_FULL) {
+    if (!defined('MAINTENANCE_MODE') || MAINTENANCE_MODE != 'update') {
+      module_invoke_all('exit', $url);
+    }
+
+    drupal_session_commit();
+
+    if ($cache_enabled) {
+      // We must output something to allow the request to be cached.
+      echo ' ';
+      $cache = drupal_page_set_cache();
+      if ($cache) {
+        // When caching this redirect for the first time we still need
+        // to ensure that the correct cache headers are sent.
+        // @see drupal_page_footer()
+        drupal_serve_page_from_cache($cache);
+      }
+    }
+  }
+  exit;
 }

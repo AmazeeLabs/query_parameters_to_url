@@ -37,8 +37,9 @@ The following configuration options are present:
 
 * Allow disabling all path rewriting by un-checking checkbox.
 * Allow configuring which characters should be used for delimiting query parameters. Care should be taken, to only use
- characters that are valid in an URI path component
- (refer to [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.3) for details).
+ characters that are valid in an URI path component, as well as making sure the characters don't normally appear in
+ the URL, so that the decoding process is correct
+ (refer to [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.3) for allowed characters details).
 * Allow setting a regular expression which is used to determine on which paths query parameter rewriting should occur.
 * Additional rewrite-enabled paths can be added by implementing **hook_query_parameters_to_url_rewrite_access()**.
 
