@@ -19,6 +19,7 @@ function query_parameters_to_url_uninstall() {
   variable_del(QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER);
   variable_del(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP);
   variable_del(QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD);
+  variable_del(QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS);
 }
 
 /**

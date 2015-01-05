@@ -13,6 +13,7 @@ define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER', 'query_parameters_t
 define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER', 'query_parameters_to_url_query_nested_value_delimiter');
 define('QUERY_PARAMETERS_TO_URL_PATH_REG_EXP', 'query_parameters_to_url_path_reg_exp');
 define('QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD', 'query_parameters_to_url_redirect_threshold');
+define('QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS', 'query_parameters_to_url_ignore_admin_paths');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW', 'allow');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_DENY', 'deny');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_IGNORE', 'ignore');
@@ -102,9 +103,27 @@ function query_parameters_to_url_redirect_threshold() {
 }
 
 /**
+ * Returns the variable value if admin paths should be ignored.
+ */
+function query_parameters_to_url_ignore_admin_paths() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS, TRUE);
+}
+
+/**
  * Check whether given path should be rewritten.
  */
 function query_parameters_to_url_path_should_be_rewritten($path = '', $options = array(), $original_path = NULL, $path_language = NULL) {
+  // If the URL is indicated as external, skip it.
+  if (!empty($options['external'])) {
+    return FALSE;
+  }
+
+  // Ignore administration paths.
+  if (query_parameters_to_url_ignore_admin_paths() && path_is_admin($path)) {
+    return FALSE;
+  }
+
+  // Use the current path as the path to be rewritten.
   if (empty($path)) {
     $path = current_path();
   }
