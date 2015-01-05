@@ -12,8 +12,8 @@ query parameters, it might impact SEO results.
 
 An example of a dirty URL like that could be:
 
-[http://example-site.com/events?field_category_id[0]=100&field_category_id[1]=101&field_author_name[0]=John&field_author_surname[0]=Doe]
-(http://example-site.com/events?field_category_id[0]=100&field_category_id[1]=101&field_author_name[0]=John&field_author_surname[0]=Doe)
+[http://example-site.com/events?field_category_id[0]=100&field_category_id[1]=101&field_author_name=John&field_author_surname=Doe]
+(http://example-site.com/events?field_category_id[0]=100&field_category_id[1]=101&field_author_name=John&field_author_surname=Doe)
 
 Using this module you can transform the URL into:
 

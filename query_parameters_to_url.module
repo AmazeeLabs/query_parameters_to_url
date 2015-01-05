@@ -262,27 +262,20 @@ function query_parameters_to_url_decode_encoded_query_parameter($encoded) {
 /**
  * Checks whether an array has nested arrays as values.
  */
-function query_parameters_to_url_array_has_nested_query_arguments($query_parameters) {
-  // If empty, or is not array, then it has no nested parameters.
+function query_parameters_to_url_array_has_array_query_parameters($query_parameters) {
+  // If empty, or is not array, then it has no array parameters.
   if (empty($query_parameters) || !is_array($query_parameters)) {
     return FALSE;
   }
 
-  // If at least one array element is an array, then it's a nested parameter.
-  foreach ($query_parameters as $parameter) {
-    if (is_array($parameter)) {
-      return TRUE;
-    }
-  }
-
-  // An array of simple values.
-  return FALSE;
+  // An array of query parameters.
+  return TRUE;
 }
 
 /**
  * Checks whether an encoded string has nested query arguments.
  */
-function query_parameters_to_url_encoded_string_has_nested_query_arguments($string) {
+function query_parameters_to_url_encoded_string_has_array_query_parameters($string) {
   // Simple check if delimiters are present.
   $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
   $nested_key_delimiter = query_parameters_to_url_nested_key();
@@ -292,6 +285,17 @@ function query_parameters_to_url_encoded_string_has_nested_query_arguments($stri
   }
 
   return FALSE;
+}
+
+/**
+ * Replace possibly percent-encoded characters with the actual chars.
+ */
+function query_parameters_to_url_replace_url_encoded_delimiters($url) {
+  $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
+  $nested_key_delimiter = query_parameters_to_url_nested_key();
+  $url = str_replace(rawurlencode($nested_values_delimiter), $nested_values_delimiter, $url);
+  $url = str_replace(rawurlencode($nested_key_delimiter), $nested_key_delimiter, $url);
+  return $url;
 }
 
 /**
@@ -310,7 +314,6 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
 
       // Extract all the path parts that are actually encoded query parameters.
       $extracted_query_parameters = array();
-      $query_value_delimiter = query_parameters_to_url_multiple_values_delimiter();
       for ($i = $p_key + 1; $i < $last_part_key; $i += 2) {
         $query_key = $parts[$i];
 
@@ -321,17 +324,15 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         $query_values = $parts[$i+1];
 
         // Choose which decoding type to use.
-        $is_nested = query_parameters_to_url_encoded_string_has_nested_query_arguments($query_values);
-        if ($is_nested) {
+        $has_array_parameters = query_parameters_to_url_encoded_string_has_array_query_parameters($query_values);
+        if ($has_array_parameters) {
           // Use complete decoding.
           $query_parameter_values_array = query_parameters_to_url_decode_encoded_query_parameter($query_values);
         }
         else {
           // Use simple decoding.
-          // Multiple query parameter values are imploded, so we explode them.
-          $query_parameter_values_array = explode($query_value_delimiter, $query_values);
+          $query_parameter_values_array = $query_values;
         }
-
         $extracted_query_parameters[$query_key] = $query_parameter_values_array;
       }
 
@@ -401,29 +402,23 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
         // occur in the path.
         $new_path = rtrim($path, '/') . '/' . $url_and_query_delimiter;
 
-        $query_value_delimiter = query_parameters_to_url_multiple_values_delimiter();
         foreach ($options['query'] as $key => $values) {
 
           // Choose which encoding type to use.
-          $is_nested = query_parameters_to_url_array_has_nested_query_arguments($values);
-          if ($is_nested) {
+          $has_array_parameters = query_parameters_to_url_array_has_array_query_parameters($values);
+          if ($has_array_parameters) {
             // Use complete encoding.
             $encoded_query_parameter_values = query_parameters_to_url_encode_query_parameter($values);
           }
           else {
             // Use simple encoding.
-            // Multiple value parameters should be imploded.
-            if (is_array($values)) {
-              $encoded_query_parameter_values = implode($query_value_delimiter, $values);
-            }
-            else {
-              $encoded_query_parameter_values = $values;
-            }
+            $encoded_query_parameter_values = $values;
           }
 
           // Add the encoded query parameter values to the end of the path, only
           // if it actually has any values.
-          if (!empty($encoded_query_parameter_values)) {
+          $is_blank = empty($encoded_query_parameter_values) && !is_numeric($encoded_query_parameter_values);
+          if (!$is_blank) {
             $query_parameters_components .= '/' . $key . '/' . $encoded_query_parameter_values;
           }
 
@@ -473,12 +468,7 @@ function query_parameters_to_url_init() {
       // If the path indeed was changed, we redirect to the new path.
       if ($path != $original_path) {
         $url = url($path, $options);
-
-        // Replace possibly percent-encoded characters with the actual chars.
-        $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
-        $nested_key_delimiter = query_parameters_to_url_nested_key();
-        $url = str_replace(rawurlencode($nested_values_delimiter), $nested_values_delimiter, $url);
-        $url = str_replace(rawurlencode($nested_key_delimiter), $nested_key_delimiter, $url);
+        $url = query_parameters_to_url_replace_url_encoded_delimiters($url);
 
         // Redirect protection in case something goes horribly wrong. Inspired
         // by redirect module.
