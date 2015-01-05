@@ -24,20 +24,34 @@ function query_parameters_to_url_menu() {
   $items = array();
 
   $items['admin/config/search/query-parameters-to-url'] = array(
-    'title' => 'Query Parameters To URL settings',
+    'title' => 'Query Parameters To URL',
     'description' => 'Settings for rewriting query parameters into clean url components.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('query_parameters_to_url_admin_settings'),
     'access arguments' => array('administer site configuration'),
     'weight' => 0,
-    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/config/search/query-parameters-to-url/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+
+  $items['admin/config/search/query-parameters-to-url/examples'] = array(
+    'title' => 'Example URLs',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('query_parameters_to_url_admin_examples'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 30,
   );
 
   return $items;
 }
 
 /**
- * Recreate missing FPP entities form.
+ * Admin settings page callback.
  */
 function query_parameters_to_url_admin_settings() {
   $form = array();
@@ -121,6 +135,117 @@ function query_parameters_to_url_admin_settings() {
   ) + $default_options;
 
   return system_settings_form($form);
+}
+
+/**
+ * Example URLs page callback.
+ */
+function query_parameters_to_url_admin_examples() {
+  $form = array();
+
+  global $conf;
+  $conf[QUERY_PARAMETERS_TO_URL_PATH_REG_EXP] = '{(^events|^search|^download-files)}';
+  $text_field_size = 180;
+
+  $form['example_urls'] = array(
+    '#type' => 'item',
+    '#markup' => t('<h2>Below you can find example URLs and the new encoded paths.</h2>'),
+  );
+
+  $example = 'events?field_event_category_target_id[0]=1&field_event_category_target_id[1]=2&og_group_ref_target_id[0]=100';
+  list($encoded, $options) = query_parameters_to_url_parse_uri($example);
+  query_parameters_to_url_url_outbound_alter($encoded, $options, $example);
+  $percentage_saved = query_parameters_to_url_compute_saved_char_percentage($encoded, $example);
+
+  $form['example_1'] = array(
+    '#type' => 'textfield',
+    '#title' => 'URL Example 1',
+    '#default_value' => $example,
+    '#size' => $text_field_size,
+  );
+
+  $form['encoded_1'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Encoded URL Example 1',
+    '#default_value' => $encoded,
+    '#size' => $text_field_size,
+  );
+
+  $form['characters_saved_1'] = array(
+    '#type' => 'item',
+    '#markup' => t('!count% characters saved with the new encoded path.', array('!count' => $percentage_saved)),
+  );
+
+  $example = 'search/site?page=2&f[0]=bundle%3Astandard_page&f[1]=dm_field_date%3A%5B2014-12-01T00%3A00%3A00Z%20TO%202015-01-01T00%3A00%3A00Z%5D';
+  list($encoded, $options) = query_parameters_to_url_parse_uri($example);
+  query_parameters_to_url_url_outbound_alter($encoded, $options, $example);
+  $percentage_saved = query_parameters_to_url_compute_saved_char_percentage($encoded, $example);
+
+  $form['example_2'] = array(
+    '#type' => 'textfield',
+    '#title' => 'URL Example 2',
+    '#default_value' => $example,
+    '#size' => $text_field_size,
+  );
+
+  $form['encoded_2'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Encoded URL Example 2',
+    '#default_value' => $encoded,
+    '#size' => $text_field_size,
+  );
+
+  $form['characters_saved_2'] = array(
+    '#type' => 'item',
+    '#markup' => t('!count% characters saved with the new encoded path.', array('!count' => $percentage_saved)),
+  );
+
+  $example = 'download-files?file[0]=a&file[]=b&file[]=c&file[]=d&file[]=e';
+  list($encoded, $options) = query_parameters_to_url_parse_uri($example);
+  query_parameters_to_url_url_outbound_alter($encoded, $options, $example);
+  $percentage_saved = query_parameters_to_url_compute_saved_char_percentage($encoded, $example);
+
+  $form['example_3'] = array(
+    '#type' => 'textfield',
+    '#title' => 'URL Example 3',
+    '#default_value' => $example,
+    '#size' => $text_field_size,
+  );
+
+  $form['encoded_3'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Encoded URL Example 3',
+    '#default_value' => $encoded,
+    '#size' => $text_field_size,
+  );
+
+  $form['characters_saved_3'] = array(
+    '#type' => 'item',
+    '#markup' => t('!count% characters saved with the new encoded path.', array('!count' => $percentage_saved)),
+  );
+
+  return $form;
+}
+
+/**
+ * Computes the percentage of characters saved using an encoded string.
+ */
+function query_parameters_to_url_compute_saved_char_percentage($encoded, $example) {
+  return $characters_saved = round(100 - (drupal_strlen($encoded) * 100 / drupal_strlen($example)), 2);
+}
+
+/**
+ * Parses an URI string into path and query parameters.
+ */
+function query_parameters_to_url_parse_uri($uri) {
+  $parsed_url = parse_url($uri);
+  $path = $parsed_url['path'];
+  $query = array();
+  parse_str(urldecode($parsed_url['query']), $query);
+  $options = array(
+    'query' => $query,
+  );
+  return array($path, $options);
 }
 
 /**
