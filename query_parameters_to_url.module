@@ -166,8 +166,15 @@ function query_parameters_to_url_is_called_from_global_redirect_init() {
     $drupal_static_fast['called'] = &drupal_static(__FUNCTION__ . '_called');
   }
   $global_redirect_enabled = &$drupal_static_fast['global_redirect_enabled'];
+  static $times_called_from_inside_global_redirect = 0;
 
-  if (!$global_redirect_enabled) {
+  // We don't return TRUE for any subsequent calls after the second time
+  // we encounter that the function was called from inside
+  // globalredirect_init(), nor when the module is disabled.
+  // globalredirect_init will call this function once and then redirect,
+  // or twice and then redirect / not redirect. That's why we need to check
+  // it twice.
+  if (!$global_redirect_enabled || ($times_called_from_inside_global_redirect >= 2)) {
     return FALSE;
   }
 
@@ -181,9 +188,13 @@ function query_parameters_to_url_is_called_from_global_redirect_init() {
     foreach ($call_stack as $function) {
       $called = ($function['function'] == 'globalredirect_init');
       if ($called) {
+        $times_called_from_inside_global_redirect++;
         break;
       }
     }
+  }
+  else {
+    $times_called_from_inside_global_redirect++;
   }
   return $called;
 }
@@ -382,8 +393,15 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
     $rewrite = query_parameters_to_url_path_should_be_rewritten($path, $options, $original_path);
     if ($rewrite) {
 
-      // Ignore if called from globalredirect_init().
-      if (query_parameters_to_url_is_called_from_global_redirect_init()) {
+      // If asked to skip the check, by hook_init(), skip it.
+      $skip_global_redirect_state =
+        isset($options['skip_global_redirect']) &&
+        $options['skip_global_redirect'] == TRUE;
+
+      // Don't encode the query parameters if called from globalredirect_init().
+      // The hook_outbound_url_alter() will be called twice from inside
+      // globalredirect_init().
+      if (!$skip_global_redirect_state && query_parameters_to_url_is_called_from_global_redirect_init()) {
         return;
       }
 
@@ -459,6 +477,10 @@ function query_parameters_to_url_init() {
       $options = array(
         'query' => $original_query_parameters,
       );
+
+      // Skip the global redirect check, because we know this is not called
+      // from globalredirect_init().
+      $options['skip_global_redirect'] = TRUE;
 
       // Try and rewrite the path.
       query_parameters_to_url_url_outbound_alter($path, $options, $path);
