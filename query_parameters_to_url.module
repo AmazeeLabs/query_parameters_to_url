@@ -152,6 +152,43 @@ function query_parameters_to_url_path_should_be_rewritten($path = '', $options =
 }
 
 /**
+ * Checks whether the function is called from inside globalredirect_init().
+ *
+ * Necessary to work with global redirect module, until the patch below is
+ * merged into the project.
+ *
+ * @see https://www.drupal.org/node/2060123
+ */
+function query_parameters_to_url_is_called_from_global_redirect_init() {
+  static $drupal_static_fast;
+  if (!isset($drupal_static_fast)) {
+    $drupal_static_fast['global_redirect_enabled'] = &drupal_static(__FUNCTION__, module_exists('globalredirect'));
+    $drupal_static_fast['called'] = &drupal_static(__FUNCTION__ . '_called');
+  }
+  $global_redirect_enabled = &$drupal_static_fast['global_redirect_enabled'];
+
+  if (!$global_redirect_enabled) {
+    return FALSE;
+  }
+
+  $called = &$drupal_static_fast['called'];
+  if (!isset($called) || empty($called)) {
+    $called = FALSE;
+    // Save memory in the debug_backtrace() function when possible.
+    $options = (version_compare(PHP_VERSION, '5.3.6', '>=') ? DEBUG_BACKTRACE_IGNORE_ARGS : NULL);
+    $call_stack = debug_backtrace($options);
+    // Check whether the function is called from inside globalredirect_init().
+    foreach ($call_stack as $function) {
+      $called = ($function['function'] == 'globalredirect_init');
+      if ($called) {
+        break;
+      }
+    }
+  }
+  return $called;
+}
+
+/**
  * Encodes an array of nested query parameters into a clean string.
  *
  * Example:
@@ -344,6 +381,11 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
     // Check if this is a path we should rewrite.
     $rewrite = query_parameters_to_url_path_should_be_rewritten($path, $options, $original_path);
     if ($rewrite) {
+
+      // Ignore if called from globalredirect_init().
+      if (query_parameters_to_url_is_called_from_global_redirect_init()) {
+        return;
+      }
 
       // Check if link has any query parameters set.
       if (isset($options['query']) && !empty($options['query'])) {

@@ -82,11 +82,11 @@ function query_parameters_to_url_admin_settings() {
   ) + $default_options;
 
   $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS] = array(
-     '#type' => 'checkbox',
-     '#title' => t('Ignore admin paths'),
-     '#description' => t('Whether query parameter encoding should be skipped on admin paths.'),
-     '#default_value' => query_parameters_to_url_ignore_admin_paths(),
-   ) + $default_options;
+    '#type' => 'checkbox',
+    '#title' => t('Ignore admin paths'),
+    '#description' => t('Whether query parameter encoding should be skipped on admin paths.'),
+    '#default_value' => query_parameters_to_url_ignore_admin_paths(),
+  ) + $default_options;
 
   $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED] = array(
     '#type' => 'textfield',
