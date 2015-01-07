@@ -203,10 +203,10 @@ function query_parameters_to_url_is_called_from_global_redirect_init() {
  * Encodes an array of nested query parameters into a clean string.
  *
  * Example:
- *  - an equivalent array of events?a[0][1][2]=3&b[4][5]=6&c=7 will become
- *  - events/p/a/0__1__2__3/b/4__5__6/c/7
+ *  - an equivalent array of ?a[0][1][2]=3&b[4][5]=6&c=7 will become
+ *  - /p/a/0__1__2__3/b/4__5__6/c/7
  */
-function query_parameters_to_url_encode_query_parameter($value, $parents = '', $depth = 0) {
+function query_parameters_to_url_encode_query_parameter_values($value, $parents = '', $depth = 0) {
   $nested_key = query_parameters_to_url_nested_key();
   $nested_value = query_parameters_to_url_nested_values_delimiter();
   $encoded = '';
@@ -216,7 +216,7 @@ function query_parameters_to_url_encode_query_parameter($value, $parents = '', $
     // parents.
     foreach ($value as $key => $element) {
       $next_parent = $parents . $key . $nested_key;
-      $encoded .= query_parameters_to_url_encode_query_parameter($element, $next_parent, $depth+1);
+      $encoded .= query_parameters_to_url_encode_query_parameter_values($element, $next_parent, $depth+1);
     }
   }
   elseif (!empty($value)) {
@@ -236,11 +236,29 @@ function query_parameters_to_url_encode_query_parameter($value, $parents = '', $
 }
 
 /**
+ * Decodes a query parameter values string into its array form.
+ */
+function query_parameters_to_url_decode_query_parameter_values($query_values) {
+  // Choose which decoding type to use.
+  $parameter_values_is_array = query_parameters_to_url_encoded_query_parameter_values_string_is_array($query_values);
+  if ($parameter_values_is_array) {
+    // Decode the encoded array, because it contains multiple values.
+    $query_parameter_values_array = query_parameters_to_url_decode_encoded_query_parameter($query_values);
+    return $query_parameter_values_array;
+  }
+  else {
+    // Simple value, no decoding required.
+    $query_parameter_values_array = $query_values;
+    return $query_parameter_values_array;
+  }
+}
+
+/**
  * Decodes an encoded string into an array of query parameters.
  *
  * Example:
- *  - events/p/a/0__1__2__3/b/4__5__6/c/7 will become an array equivalent to
- *  - events?a[0][1][2]=3&b[4][5]=6&c=7
+ *  - /p/a/0__1__2__3/b/4__5__6/c/7 will become an array equivalent to
+ *  - ?a[0][1][2]=3&b[4][5]=6&c=7
  */
 function query_parameters_to_url_decode_encoded_query_parameter($encoded) {
   $nested_key = query_parameters_to_url_nested_key();
@@ -264,22 +282,21 @@ function query_parameters_to_url_decode_encoded_query_parameter($encoded) {
 }
 
 /**
- * Checks whether an array has nested arrays as values.
+ * Checks if query parameter value is an array.
  */
-function query_parameters_to_url_array_has_array_query_parameters($query_parameters) {
-  // If empty, or is not array, then it has no array parameters.
-  if (empty($query_parameters) || !is_array($query_parameters)) {
+function query_parameters_to_url_query_parameter_values_is_array($query_value) {
+  if (empty($query_value) || !is_array($query_value)) {
     return FALSE;
   }
 
-  // An array of query parameters.
+  // An array of query parameter values.
   return TRUE;
 }
 
 /**
- * Checks whether an encoded string has nested query arguments.
+ * Checks if an encoded query parameter values string is an array.
  */
-function query_parameters_to_url_encoded_string_has_array_query_parameters($string) {
+function query_parameters_to_url_encoded_query_parameter_values_string_is_array($string) {
   // Simple check if delimiters are present.
   $nested_values_delimiter = query_parameters_to_url_nested_values_delimiter();
   $nested_key_delimiter = query_parameters_to_url_nested_key();
@@ -327,16 +344,8 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         }
         $query_values = $parts[$i+1];
 
-        // Choose which decoding type to use.
-        $has_array_parameters = query_parameters_to_url_encoded_string_has_array_query_parameters($query_values);
-        if ($has_array_parameters) {
-          // Use complete decoding.
-          $query_parameter_values_array = query_parameters_to_url_decode_encoded_query_parameter($query_values);
-        }
-        else {
-          // Use simple decoding.
-          $query_parameter_values_array = $query_values;
-        }
+        // Decode the query parameters values string.
+        $query_parameter_values_array = query_parameters_to_url_decode_query_parameter_values($query_values);
         $extracted_query_parameters[$query_key] = $query_parameter_values_array;
       }
 
@@ -419,17 +428,8 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
         $new_path = rtrim($path, '/') . '/' . $url_and_query_delimiter;
 
         foreach ($options['query'] as $key => $values) {
-
-          // Choose which encoding type to use.
-          $has_array_parameters = query_parameters_to_url_array_has_array_query_parameters($values);
-          if ($has_array_parameters) {
-            // Use complete encoding.
-            $encoded_query_parameter_values = query_parameters_to_url_encode_query_parameter($values);
-          }
-          else {
-            // Use simple encoding.
-            $encoded_query_parameter_values = $values;
-          }
+          // Encode the query parameter values to clean url component.
+          $encoded_query_parameter_values = query_parameters_to_url_encode_query_parameter_values($values);
 
           // Add the encoded query parameter values to the end of the path, only
           // if it actually has any values.
