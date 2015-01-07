@@ -1,3 +1,4 @@
 name = Query Parameters To URL
 description = Rewrites URL query parameters into Clean URL components on specified paths.
 core = 7.x
+files[] = query_parameters_to_url.test
