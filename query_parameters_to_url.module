@@ -487,6 +487,7 @@ function query_parameters_to_url_init() {
 
       // If the path indeed was changed, we redirect to the new path.
       if ($path != $original_path) {
+        $options['absolute'] = TRUE;
         $url = url($path, $options);
         $url = query_parameters_to_url_replace_url_encoded_delimiters($url);
 
