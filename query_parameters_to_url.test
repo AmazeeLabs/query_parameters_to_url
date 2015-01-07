@@ -5,7 +5,7 @@
  */
 
 /**
- * Tests.
+ * General test cases.
  */
 class QueryParametersToURLTestCase extends DrupalWebTestCase {
 
@@ -14,7 +14,7 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
    */
   public static function getInfo() {
     return array(
-      'name' => 'Query Parameters To URL tests',
+      'name' => 'Query Parameters To URL Integration tests',
       'description' => 'Test Query Parameters To URL functionality.',
       'group' => 'Query Parameters To URL',
     );
@@ -205,6 +205,104 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
     }
     else {
       $this->fail(format_string($this->getErrorMessage(), $result));
+    }
+  }
+}
+
+/**
+ * Class QueryParametersToURLUnitTestCase.
+ */
+class QueryParametersToURLUnitTestCase extends DrupalUnitTestCase {
+
+  /**
+   * Returns test info.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Query Parameters To URL Unit tests',
+      'description' => 'Test query parameter values encoding / decoding.',
+      'group' => 'Query Parameters To URL',
+    );
+  }
+
+  /**
+   * Returns a list of test cases.
+   */
+  public function getTestCases() {
+    $test_cases = array();
+
+    // ?value[a][1][2]=3&value[a][1][6]=7&value[b]=4&value[c]=5
+    $test_cases[] = array(
+      'parameter_value_array' => array(
+        'a' => array(
+          1 => array(
+            2 => 3,
+            6 => 7,
+          ),
+        ),
+        'b' => 4,
+        'c' => 5,
+      ),
+      'encoded_parameter_value_string' => 'a__1__2__3--a__1__6__7--b__4--c__5',
+    );
+
+    // ?f[0]=standard_page&f[1]=sm_og_group_ref:node:100
+    $test_cases[] = array(
+      'parameter_value_array' => array(
+        0 => 'standard_page',
+        1 => 'sm_og_group_ref:node:100',
+      ),
+      'encoded_parameter_value_string' => '0__standard_page--1__sm_og_group_ref:node:100',
+    );
+
+    return $test_cases;
+  }
+
+  /**
+   * Unpacks a test case.
+   */
+  public function unpackTestCase($test_case) {
+    return array(
+      $test_case['parameter_value_array'],
+      $test_case['encoded_parameter_value_string'],
+    );
+  }
+
+  /**
+   * Tests if a query parameter's values are properly encoded.
+   */
+  public function testQueryParameterValuesEncoding() {
+    $test_cases = $this->getTestCases();
+    foreach ($test_cases as $test_case) {
+      list($parameter_values, $expected_query_parameter_string) = $this->unpackTestCase($test_case);
+
+      $encoded_query_parameter = query_parameters_to_url_encode_query_parameter_values($parameter_values);
+
+      $message = 'Query parameter values are encoded properly.<br/> Initial array:<br/>!initial<br/>Encoded to string:<br/>!string';
+      $message = format_string($message, array(
+        '!initial' => var_export($parameter_values, TRUE),
+        '!string' => var_export($encoded_query_parameter, TRUE),
+      ));
+      $this->assertEqual($encoded_query_parameter, $expected_query_parameter_string, $message);
+    }
+  }
+
+  /**
+   * Tests if an encoded query parameter's values is properly decoded.
+   */
+  public function testQueryParameterValuesDecoding() {
+    $test_cases = $this->getTestCases();
+    foreach ($test_cases as $test_case) {
+      list($expected_parameter_values, $encoded_parameter_string) = $this->unpackTestCase($test_case);
+
+      $decoded_query_parameter_values = query_parameters_to_url_decode_query_parameter_values($encoded_parameter_string);
+
+      $message = 'Query parameter values are decoded properly.<br/> Initial string:<br/>!initial<br/>Decoded to array:<br/>!array';
+      $message = format_string($message, array(
+        '!initial' => var_export($encoded_parameter_string, TRUE),
+        '!array' => var_export($decoded_query_parameter_values, TRUE),
+      ));
+      $this->assertEqual($decoded_query_parameter_values, $expected_parameter_values, $message);
     }
   }
 }
