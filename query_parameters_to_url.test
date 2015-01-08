@@ -29,6 +29,9 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
     // Enable rewriting on all paths.
     variable_set(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP, '{.+}');
 
+    // Clean URLs should be enabled for testing.
+    variable_set('clean_url', 1);
+
     // Create test node just for the sake of something being on the front page.
     $node = array(
       'type' => 'page',
@@ -396,5 +399,49 @@ class QueryParametersToURLUnitTestCase extends DrupalUnitTestCase {
       ));
       $this->assertEqual($decoded_query_parameter_values, $expected_parameter_values, $message);
     }
+  }
+}
+
+class QueryParametersToURLGlobalRedirectTestCase extends DrupalWebTestCase {
+
+  /**
+   * Returns test info.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Query Parameters To URL Global Redirect integration tests',
+      'description' => 'Test Query Parameters To URL integration with global redirect module.',
+      'group' => 'Query Parameters To URL',
+      'dependencies' => array('globalredirect'),
+    );
+  }
+
+  /**
+   * Initial setup.
+   */
+  public function setUp() {
+    parent::setUp(array('globalredirect', 'query_parameters_to_url'));
+
+    // Enable rewriting on all paths.
+    variable_set(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP, '{.+}');
+
+    // Clean URLs should be enabled for testing.
+    variable_set('clean_url', 1);
+
+    // Create test node just for the sake of something being on the front page.
+    $node = array(
+      'type' => 'page',
+      'title' => 'Test Page Node',
+      'path' => array('alias' => 'test-node'),
+      'language' => LANGUAGE_NONE,
+      'promote' => 1,
+    );
+
+    // Save the node.
+    $this->drupalCreateNode($node);
+  }
+
+  function testGlobalRedirect() {
+    // @TODO Add global redirect testing.
   }
 }
