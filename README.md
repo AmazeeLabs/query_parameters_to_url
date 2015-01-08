@@ -42,6 +42,7 @@ The following configuration options are present:
  (refer to [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.3) for allowed characters details).
 * Allow setting a regular expression which is used to determine on which paths query parameter rewriting should occur.
 * Additional rewrite-enabled paths can be added by implementing **hook_query_parameters_to_url_rewrite_access()**.
+* Experimental feature to allow saving menu items with rewritten URLs that contain encoded query parameters.
 
 
 Usage
