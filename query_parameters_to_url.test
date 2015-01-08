@@ -288,10 +288,10 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
       $this->expectedStatus($result['!actual_status'], $result['!expected_status']) &&
       $result['!actual_path'] == $result['!expected_path']
     ) {
-      $this->pass(format_string($this->getSuccessMessage(), $result));
+      return $this->pass(format_string($this->getSuccessMessage(), $result));
     }
     else {
-      $this->fail(format_string($this->getErrorMessage(), $result));
+      return $this->fail(format_string($this->getErrorMessage(), $result));
     }
   }
 }
@@ -522,7 +522,10 @@ class QueryParametersToURLGlobalRedirectTestCase extends QueryParametersToURLTes
         '!actual_path' => isset($headers[0]['location']) ? $headers[0]['location'] : 'N/A',
         '!actual_status' => $headers[0][':status'],
       );
-      $this->assertStatusAndPath($result);
+      $success = $this->assertStatusAndPath($result);
+      if (!$success) {
+        $this->fail('<pre>' . print_r($headers, TRUE) . '</pre>');
+      }
 
       // Then we check for query parameters to url redirect, which redirects
       // to the clean URL form.
@@ -533,7 +536,10 @@ class QueryParametersToURLGlobalRedirectTestCase extends QueryParametersToURLTes
         '!actual_path' => isset($headers[1]['location']) ? $headers[1]['location'] : 'N/A',
         '!actual_status' => $headers[1][':status'],
       );
-      $this->assertStatusAndPath($result);
+      $success = $this->assertStatusAndPath($result);
+      if (!$success) {
+        $this->fail('<pre>' . print_r($headers, TRUE) . '</pre>');
+      }
 
       // Then we get to the actual clean URL.
       $result = array(
@@ -543,7 +549,10 @@ class QueryParametersToURLGlobalRedirectTestCase extends QueryParametersToURLTes
         '!actual_path' => $this->getUrl(),
         '!actual_status' => $headers[2][':status'],
       );
-      $this->assertStatusAndPath($result);
+      $success = $this->assertStatusAndPath($result);
+      if (!$success) {
+        $this->fail('<pre>' . print_r($headers, TRUE) . '</pre>');
+      }
     }
   }
 }
