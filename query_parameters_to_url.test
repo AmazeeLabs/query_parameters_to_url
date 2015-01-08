@@ -547,3 +547,108 @@ class QueryParametersToURLGlobalRedirectTestCase extends QueryParametersToURLTes
     }
   }
 }
+
+/**
+ * Menu item save tests.
+ */
+class QueryParametersToURLMenuItemTestCase extends DrupalWebTestCase {
+  protected $admin_user;
+
+  /**
+   * Returns test info.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Query Parameters To URL Menu Item tests',
+      'description' => 'Test saving menu items with rewritten URLs that contain encoded query parameters.',
+      'group' => 'Query Parameters To URL',
+    );
+  }
+
+  /**
+   * Initial setup.
+   */
+  public function setUp() {
+    parent::setUp(array('menu', 'query_parameters_to_url'));
+
+    // Enable rewriting on all paths.
+    variable_set(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP, '{.+}');
+
+    // Clean URLs should be enabled for testing.
+    variable_set('clean_url', 1);
+
+    // Create privileged user.
+    $permissions = array(
+      'access administration pages',
+      'administer blocks',
+      'administer menu',
+      'administer site configuration',
+      'create page content',
+      'edit any page content',
+      'delete any page content',
+    );
+    $this->admin_user = $this->drupalCreateUser($permissions);
+  }
+
+  /**
+   * Tests saving menu items that contain rewritten URLs with parameters.
+   */
+  public function testMenuItemSave() {
+    $this->drupalLogin($this->admin_user);
+
+    $alias = 'test-node';
+    // Create test node which will be inserted into the menu item.
+    $node = array(
+      'type' => 'page',
+      'title' => 'Test Page Node',
+      'path' => array('alias' => $alias),
+      'language' => LANGUAGE_NONE,
+      'promote' => 1,
+    );
+
+    // Save the node.
+    $saved_node = $this->drupalCreateNode($node);
+    $encoded_url = 'node/' . $saved_node->nid . '/p/a/0__1--1__2/b/c__3';
+    $expected_stripped_url = 'node/' . $saved_node->nid;
+    $link_title = 'Test Menu Item';
+
+    // Add the menu item.
+    $edit = array();
+    $edit['link_title'] = $link_title;
+    $edit['link_path'] = $encoded_url;
+    $this->drupalPost('admin/structure/menu/manage/main-menu/add', $edit, t('Save'));
+
+    // Check that the URL encoded parameters were stripped, because menu item
+    // saving was not enabled yet.
+    $this->assertText(t('The menu system stores system paths only, but will use the URL alias for display. !link_path has been stored as !normal_path', array('!link_path' => $encoded_url, '!normal_path' => $expected_stripped_url)));
+
+    // Enable menu item saving.
+    variable_set(QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE, TRUE);
+
+    // Get the menu item listing page.
+    $this->drupalGet('admin/structure/menu/manage/main-menu');
+
+    // Get the edit link for the created menu item.
+    $this->clickLink('edit', 1);
+    $edit_menu_item_url = $this->getUrl();
+
+    // Re-submit the proper URL.
+    $edit = array();
+    $edit['link_title'] = $link_title;
+    $edit['link_path'] = $encoded_url;
+    $this->drupalPost($edit_menu_item_url, $edit, t('Save'));
+
+    // This time the message should not appear, because we enabled saving of
+    // menu items that contain rewritten URLs.
+    $this->assertNoText(t('The menu system stores system paths only, but will use the URL alias for display. !link_path has been stored as !normal_path', array('!link_path' => $encoded_url, '!normal_path' => $expected_stripped_url)));
+
+    // Get the URL saved for the menu link.
+    $this->drupalGet('admin/structure/menu/manage/main-menu');
+    $this->assertLinkByHref($encoded_url);
+
+    // Click on the link, and check that it led to the proper page.
+    $this->clickLink($link_title);
+    $url = $this->getUrl();
+    $this->assertEqual($url, $this->getAbsoluteUrl($encoded_url));
+  }
+}
