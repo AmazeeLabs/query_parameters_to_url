@@ -490,6 +490,11 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
         // components start, and where the encoded query parameters start.
         $url_and_query_delimiter = query_parameters_to_url_url_query_delimiter();
 
+        // Make sure to replace <front> with front page url.
+        if ($path == '<front>') {
+          $path = variable_get('site_frontpage', 'node');
+        }
+
         // Make sure to trim the rightmost slashes, so double slashes don't
         // occur in the path.
         $new_path = rtrim($path, '/') . '/' . $url_and_query_delimiter;
