@@ -67,11 +67,18 @@ function query_parameters_to_url_admin_settings() {
     '#description' => t('You can enable rewriting for additional paths, by implementing <strong>hook_query_parameters_to_url_rewrite_access()</strong>.'),
   ) + $default_options;
 
-  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED] = array(
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_ADDITIONAL_PATHS_HOOKS_ENABLED] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable hook invocation to find additional paths'),
     '#description' => t('If checked, <strong>hook_query_parameters_to_url_rewrite_access()</strong> implementations will be invoked, to allow support for additional rewrite paths.'),
-    '#default_value' => query_parameters_to_url_hooks_enabled(),
+    '#default_value' => query_parameters_to_url_additional_paths_hooks_enabled(),
+  ) + $default_options;
+
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_REWRITE_HOOKS_ENABLED] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable hook invocation to allow rewriting the final encoded paths'),
+    '#description' => t('If checked, <strong>hook_query_parameters_to_url_rewrite_alter()</strong> implementations will be invoked, to allow rewriting the final query parameter encoded URLs. See <em>query_parameters_to_url.api.php</em> for an example and documentation.'),
+    '#default_value' => query_parameters_to_url_rewrite_hooks_enabled(),
   ) + $default_options;
 
   $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED] = array(

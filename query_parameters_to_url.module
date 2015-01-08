@@ -6,7 +6,7 @@
 
 define('QUERY_PARAMETERS_TO_URL_MODULE_NAME', 'query_parameters_to_url');
 define('QUERY_PARAMETERS_TO_URL_ENABLED', 'query_parameters_to_url_enabled');
-define('QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED', 'query_parameters_to_url_hooks_enabled');
+define('QUERY_PARAMETERS_TO_URL_ADDITIONAL_PATHS_HOOKS_ENABLED', 'query_parameters_to_url_hooks_enabled');
 define('QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED', 'query_parameters_to_url_redirect_protection_enabled');
 define('QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER', 'query_parameters_to_url_url_and_query_delimiter');
 define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER', 'query_parameters_to_url_query_nested_key_delimiter');
@@ -15,6 +15,7 @@ define('QUERY_PARAMETERS_TO_URL_PATH_REG_EXP', 'query_parameters_to_url_path_reg
 define('QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD', 'query_parameters_to_url_redirect_threshold');
 define('QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS', 'query_parameters_to_url_ignore_admin_paths');
 define('QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE', 'query_parameters_to_url_allow_rewritten_menu_item_save');
+define('QUERY_PARAMETERS_TO_URL_REWRITE_HOOKS_ENABLED', 'query_parameters_to_url_rewrite_hooks_enabled');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW', 'allow');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_DENY', 'deny');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_IGNORE', 'ignore');
@@ -83,10 +84,17 @@ function query_parameters_to_url_path_reg_exp() {
 }
 
 /**
+ * Returns the variable value if additional paths rewrite hooks are enabled.
+ */
+function query_parameters_to_url_additional_paths_hooks_enabled() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_ADDITIONAL_PATHS_HOOKS_ENABLED, TRUE);
+}
+
+/**
  * Returns the variable value if url rewrite hooks are enabled.
  */
-function query_parameters_to_url_hooks_enabled() {
-  return variable_get(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED, TRUE);
+function query_parameters_to_url_rewrite_hooks_enabled() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_REWRITE_HOOKS_ENABLED, FALSE);
 }
 
 /**
@@ -138,8 +146,8 @@ function query_parameters_to_url_path_should_be_rewritten($path = '', $options =
 
   // Invoke hooks to see if any module allows or denies a rewrite for the given
   // path.
-  $hooks_enabled = &drupal_static(__FUNCTION__, query_parameters_to_url_hooks_enabled());
-  if ($hooks_enabled) {
+  $additional_paths_hooks_enabled = &drupal_static(__FUNCTION__, query_parameters_to_url_additional_paths_hooks_enabled());
+  if ($additional_paths_hooks_enabled) {
     $rewrites = module_invoke_all('query_parameters_to_url_rewrite_access', $path, $options, $original_path, $path_language);
     if (in_array(QUERY_PARAMETERS_TO_URL_REWRITE_DENY, $rewrites, TRUE)) {
       return FALSE;
@@ -402,13 +410,6 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
       }
 
       if (!empty($extracted_query_parameters)) {
-        // If there were any query parameters imploded in the URL, put them
-        // into $_GET, as if they were originally there.
-        $_GET += $extracted_query_parameters;
-
-        // Get a copy of all query parameters except for q.
-        $query_parameters_without_q = drupal_get_query_parameters();
-
         // Remove the encoded query parameters in the path, and set it as the
         // inbound path.
         $path = implode('/', array_slice($parts, 0, $p_key));
@@ -432,6 +433,26 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // an endless redirect loop.
         $path_altered = &drupal_static(__FUNCTION__, FALSE);
         $path_altered = TRUE;
+
+        if (query_parameters_to_url_rewrite_hooks_enabled()) {
+          // Allow altering the final inbound url.
+          $context = array(
+            'direction' => 'inbound',
+            'original_path' => $original_path,
+            'path_language' => $path_language,
+            'extracted_query_parameters' => &$extracted_query_parameters,
+            'request_uri_path' => &$request_uri_path,
+            'initial_url_components' => $parts,
+          );
+          drupal_alter('query_parameters_to_url_rewrite', $path, $context);
+        }
+
+        // If there were any query parameters imploded in the URL, put them
+        // into $_GET, as if they were originally there.
+        $_GET += $extracted_query_parameters;
+
+        // Get a copy of all query parameters except for q.
+        $query_parameters_without_q = drupal_get_query_parameters();
 
         // Build new REQUEST_URI, because certain modules extract the query
         // parameters from inside it, instead of $_GET. One example is Better
@@ -497,7 +518,19 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
 
         // Make sure to trim the rightmost slashes, so double slashes don't
         // occur in the path.
-        $new_path = rtrim($path, '/') . '/' . $url_and_query_delimiter;
+        $new_path_no_delimiter = rtrim($path, '/');
+        $new_path = $new_path_no_delimiter . '/' . $url_and_query_delimiter;
+
+        if (query_parameters_to_url_rewrite_hooks_enabled()) {
+          // Allow altering the final outbound url, before encoding.
+          $context = array(
+            'direction' => 'outbound',
+            'options' => &$options,
+            'original_path' => $original_path,
+            'new_path_without_parameters' => &$new_path,
+          );
+          drupal_alter('query_parameters_to_url_rewrite', $path, $context);
+        }
 
         foreach ($options['query'] as $key => $values) {
           // Encode the query parameter values to clean url component.

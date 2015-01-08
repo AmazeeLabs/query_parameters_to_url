@@ -12,7 +12,8 @@ function query_parameters_to_url_uninstall() {
   drupal_load('module', 'query_parameters_to_url');
 
   variable_del(QUERY_PARAMETERS_TO_URL_ENABLED);
-  variable_del(QUERY_PARAMETERS_TO_URL_HOOKS_ENABLED);
+  variable_del(QUERY_PARAMETERS_TO_URL_ADDITIONAL_PATHS_HOOKS_ENABLED);
+  variable_del(QUERY_PARAMETERS_TO_URL_REWRITE_HOOKS_ENABLED);
   variable_del(QUERY_PARAMETERS_TO_URL_REDIRECT_PROTECTION_ENABLED);
   variable_del(QUERY_PARAMETERS_TO_URL_URL_AND_QUERY_DELIMITER);
   variable_del(QUERY_PARAMETERS_TO_URL_QUERY_NESTED_KEY_DELIMITER);

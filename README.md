@@ -42,6 +42,9 @@ The following configuration options are present:
  (refer to [RFC 3986](https://tools.ietf.org/html/rfc3986#section-3.3) for allowed characters details).
 * Allow setting a regular expression which is used to determine on which paths query parameter rewriting should occur.
 * Additional rewrite-enabled paths can be added by implementing **hook_query_parameters_to_url_rewrite_access()**.
+* Allow rewriting the final encoded URLs by implementing **hook_query_parameters_to_url_rewrite_alter()**.
+  This allows you renaming the query parameter keys and values to be shorter or more SEO friendly.
+  See query_parameters_to_url.api.php for documentation and an example.
 * Experimental feature to allow saving menu items with rewritten URLs that contain encoded query parameters.
 
 
@@ -86,11 +89,14 @@ Considerations
  number of links that will be rewritten. This is a necessary slow-down, so that the module can actually work.
 * To speed up things a bit, you can disable "additional path" hook executions, so that only the regular expression is
  used.
+* Using the hook_query_parameters_to_url_rewrite_alter to rewrite the final encoded URLs, can decrease performance
+ significantly, depending on what you do in the hook. For example calling node_loads for every outbound url will incur
+ a performance hit. To mitigate this you can try and use static or DB caching depending on your business logic.
 * When nested query parameter arrays are used, like [(/events?a[0][1][2]=3&a[3]=4)](/events?a[0][1][2]=3&a[3]=4), 
  the resulting clean URL has a lot of nested delimiters [(/events/p/a/0__1__2__3--3__4)](/events/p/a/0__1__2__3--3__4),
  which looks a bit ugly, but is necessary to decode the URL back into query parameters.
 
 TODOs
 -----
-* Add ability to alter the parameters keys so they can be shorter.
-* Add ability to alter the final encoded / decoded string that represents the query parameters.
+* Add DB caching for rewritten URLs, if this will improve speed, bypassing all hook invocations.
+* Add tests for url rewriting hooks.
