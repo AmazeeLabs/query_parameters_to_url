@@ -361,6 +361,21 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // inbound path.
         $path = implode('/', array_slice($parts, 0, $p_key));
 
+        // Make a copy of the path for the request_uri, before the front page
+        // check, so that the request URI has the empty string path, to make
+        // sure global redirect module doesn't cause endless redirect loops,
+        // by constantly comparing the request uri to the 'q' parameter, and
+        // always seeing that request uri isn't empty, when it actually expects
+        // it to be empty for the front page.
+        $request_uri_path = $path;
+
+        // If path is empty, make sure to set it to the actual front page path,
+        // because otherwise Drupal can't find the proper menu item, and returns
+        // page not found.
+        if (empty($path)) {
+          $path = variable_get('site_frontpage', 'node');
+        }
+
         // Mark that the inbound URL was altered, so that hook_init doesn't do
         // an endless redirect loop.
         $path_altered = &drupal_static(__FUNCTION__, FALSE);
@@ -374,7 +389,7 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // @ignore security_12
         if (isset($_SERVER['REQUEST_URI'])) {
           $query_string = http_build_query($query_parameters_without_q, '');
-          $new_request_uri = '/' . $path . '?' . $query_string;
+          $new_request_uri = '/' . $request_uri_path . '?' . $query_string;
           // @TODO Is this really a sec hole? If so what can we do about it?
           // @ignore security_12
           $_SERVER['REQUEST_URI'] = $new_request_uri;
@@ -472,6 +487,18 @@ function query_parameters_to_url_init() {
       // outbound alter hook, so it tries and rewrites a path with query
       // parameters into a new clean URL with encoded query parameters.
       $original_path = current_path();
+
+      // Hack support for global redirect module, to make sure that the front
+      // page has an empty string for the URL.
+      if (
+        drupal_is_front_page()
+        && module_exists('globalredirect')
+        && ($settings = _globalredirect_get_settings())
+        && $settings['frontpage_redirect']
+      ) {
+        $original_path = '';
+      }
+
       $original_query_parameters = drupal_get_query_parameters();
       $path = $original_path;
       $options = array(
@@ -484,6 +511,10 @@ function query_parameters_to_url_init() {
 
       // Try and rewrite the path.
       query_parameters_to_url_url_outbound_alter($path, $options, $path);
+
+      // Make sure to remove any left slashes, if the path was empty, because
+      // it was the front page path.
+      $path = ltrim($path, '/');
 
       // If the path indeed was changed, we redirect to the new path.
       if ($path != $original_path) {

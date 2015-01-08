@@ -402,7 +402,10 @@ class QueryParametersToURLUnitTestCase extends DrupalUnitTestCase {
   }
 }
 
-class QueryParametersToURLGlobalRedirectTestCase extends DrupalWebTestCase {
+/**
+ * Global redirect module integration.
+ */
+class QueryParametersToURLGlobalRedirectTestCase extends QueryParametersToURLTestCase {
 
   /**
    * Returns test info.
@@ -420,7 +423,7 @@ class QueryParametersToURLGlobalRedirectTestCase extends DrupalWebTestCase {
    * Initial setup.
    */
   public function setUp() {
-    parent::setUp(array('globalredirect', 'query_parameters_to_url'));
+    DrupalWebTestCase::setUp(array('globalredirect', 'query_parameters_to_url'));
 
     // Enable rewriting on all paths.
     variable_set(QUERY_PARAMETERS_TO_URL_PATH_REG_EXP, '{.+}');
@@ -441,6 +444,9 @@ class QueryParametersToURLGlobalRedirectTestCase extends DrupalWebTestCase {
     $this->drupalCreateNode($node);
   }
 
+  /**
+   * Test global redirect integration.
+   */
   function testGlobalRedirect() {
     // @TODO Add global redirect testing.
   }
