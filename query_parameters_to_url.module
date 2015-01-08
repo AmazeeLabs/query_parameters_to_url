@@ -139,6 +139,11 @@ function query_parameters_to_url_path_should_be_rewritten($path = '', $options =
     return FALSE;
   }
 
+  // Ignore batch URLs.
+  if ($path == 'batch') {
+    return FALSE;
+  }
+
   // Use the current path as the path to be rewritten.
   if (empty($path)) {
     $path = current_path();
