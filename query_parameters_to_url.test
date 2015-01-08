@@ -68,6 +68,7 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
    * Tests if a path with query parameters gets redirected to the clean path.
    */
   public function testRedirectWithQueryParameters() {
+    $this->pass('Test redirecting to clean url when url has query parameters.');
     $test_cases = $this->pathsToTest();
     foreach ($test_cases as $test_case) {
       list($path, $options, $expected_path) = $this->unpackTestCase($test_case);
@@ -95,7 +96,8 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
   /**
    * Tests if inbound/outbound hooks do their job.
    */
-  public function testInboundOutboundURL() {
+  public function testURLRewriting() {
+    $this->pass('Test if urls are properly rewritten.');
     $test_cases = $this->pathsToTest();
     foreach ($test_cases as $test_case) {
       list($path, $options, $expected_path) = $this->unpackTestCase($test_case);
@@ -116,6 +118,88 @@ class QueryParametersToURLTestCase extends DrupalWebTestCase {
       );
       $this->assertStatusAndPath($result);
     }
+  }
+
+  /**
+   * Tests url() encoding and decoding, affected by inbound / outbound hooks.
+   */
+  public function testUrlEncodingAndDecoding() {
+    $this->pass('Test encoding / decoding affected by inbound / outbound hooks.');
+
+    $test_cases = array();
+    $test_cases[] = array(
+      'path' => 'node',
+      'query' => array(
+        'page' => 1,
+        'f' => array(
+          0 => 'bundle:standard_page',
+          1 => 'sm_og_group_ref:node:100',
+          2 => 'dm_field_date:[2014-11-01T00:00:00Z TO 2014-12-01T00:00:00Z]',
+        ),
+      ),
+      'expected_path' => 'node/p/page/1/f/0__bundle%3Astandard_page--1__sm_og_group_ref%3Anode%3A100--2__dm_field_date%3A%5B2014-11-01T00%3A00%3A00Z%20TO%202014-12-01T00%3A00%3A00Z%5D',
+    );
+
+    foreach ($test_cases as $test_case) {
+      $initial_url = $test_case['path'];
+      $initial_query = $test_case['query'];
+      $expected_path = $this->createRawUrl($test_case['expected_path'], array());
+
+      $options = array(
+        'query' => $initial_query,
+        'absolute' => TRUE,
+      );
+      $encoded_url = url($initial_url, $options);
+
+      $message = 'Encoding initial URL:<br/>!url<br/>Initial Query:<br/>!query<br/>Encoded to:<br/>!encoded<br/>Expected:<br/>!expected';
+      $message = format_string($message, array(
+        '!url' => $initial_url,
+        '!query' => var_export($initial_query, TRUE),
+        '!encoded' => $encoded_url,
+        '!expected' => $expected_path,
+      ));
+      $this->assertEqual($encoded_url, $expected_path, $message);
+
+      $decoded_url = $encoded_url;
+      $path_language = 'en';
+      query_parameters_to_url_url_inbound_alter($decoded_url, $decoded_url, $path_language);
+
+      $initial_url_absolute = $this->createRawUrl($initial_url, array());
+      $message = 'Decoding clean URL:<br/>!url<br/>Decoded to:<br/>!decoded<br/>Expected:<br/>!expected';
+      $message = format_string($message, array(
+        '!url' => $encoded_url,
+        '!decoded' => $decoded_url,
+        '!expected' => $initial_url_absolute,
+      ));
+      $this->assertEqual($decoded_url, $initial_url_absolute, $message);
+
+      // Get the query parameters set by the inbound hook in $_GET. Make sure
+      // they are URL decoded, and that only the same parameters that were set
+      // in the test case are used.
+      $query_parameters = drupal_get_query_parameters();
+      $query_parameters_cleaned = $query_parameters;
+      array_walk_recursive($query_parameters_cleaned, array('QueryParametersToURLTestCase', 'applyUrlDecode'));
+      foreach ($query_parameters_cleaned as $key => $parameter) {
+        if (!isset($initial_query[$key])) {
+          unset($query_parameters_cleaned[$key]);
+        }
+      }
+
+      $message = 'Decoding clean URL:<br/>!url<br/>Decoded query parameters to:<br/>!decoded<br/>Expected query parameters:<br/>!expected';
+      $message = format_string($message, array(
+        '!url' => $encoded_url,
+        '!decoded' => var_export($query_parameters_cleaned, TRUE),
+        '!expected' => var_export($initial_query, TRUE),
+      ));
+      $this->assertEqual($query_parameters_cleaned, $initial_query, $message);
+    }
+  }
+
+  /**
+   * URL decodes an array value.
+   */
+  protected static function applyUrlDecode(&$item, $key) {
+    $item = urldecode($item);
   }
 
   /**
