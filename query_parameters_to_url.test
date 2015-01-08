@@ -445,9 +445,105 @@ class QueryParametersToURLGlobalRedirectTestCase extends QueryParametersToURLTes
   }
 
   /**
-   * Test global redirect integration.
+   * Tests if a path with query parameters gets redirected to the clean path.
    */
-  function testGlobalRedirect() {
-    // @TODO Add global redirect testing.
+  public function testRedirectWithQueryParameters() {
+    $this->pass('Test redirecting to clean url when url has query parameters.');
+    $test_cases = $this->pathsToTest();
+    foreach ($test_cases as $test_case) {
+      list($path, $options, $expected_path) = $this->unpackTestCase($test_case);
+
+      // Make sure they are absolute URLs.
+      $raw_path = $this->createRawUrl($path, $options);
+
+      // The expected path in case when global redirect is enabled, and the path
+      // was the frontpage, is to remove the front page prefix, so it's empty.
+      $expected_path_parts = explode('/', $expected_path);
+      array_shift($expected_path_parts);
+      $expected_path = implode('/', $expected_path_parts);
+      $raw_expected_path = $this->createRawUrl($expected_path, array());
+
+      // Make HEAD request and check the headers.
+      $this->drupalHeadRawURL($raw_path);
+      $headers = $this->drupalGetHeaders(TRUE);
+
+      // First Global Redirect does it's own redirect, to a clean front page,
+      // but with the query parameters present in usual form.
+      $expected_redirect_path = $this->createRawUrl('', $options);
+      $result_from_global_redirect = array(
+        '!initial_path' => $path,
+        '!expected_status' => '301',
+        '!expected_path' => $expected_redirect_path,
+        '!actual_path' => isset($headers[0]['location']) ? $headers[0]['location'] : 'N/A',
+        '!actual_status' => $headers[0][':status'],
+      );
+      $this->assertStatusAndPath($result_from_global_redirect);
+
+      // Then we check for query parameters to url redirect, which redirects
+      // to the clean URL form.
+      $result_from_our_module_redirect = array(
+        '!initial_path' => $path,
+        '!expected_status' => '302',
+        '!expected_path' => $raw_expected_path,
+        '!actual_path' => isset($headers[1]['location']) ? $headers[1]['location'] : 'N/A',
+        '!actual_status' => $headers[1][':status'],
+      );
+      $this->assertStatusAndPath($result_from_our_module_redirect);
+    }
+  }
+
+  /**
+   * Tests if inbound/outbound hooks do their job.
+   */
+  public function testURLRewriting() {
+    $this->pass('Test if urls are properly rewritten.');
+    $test_cases = $this->pathsToTest();
+    foreach ($test_cases as $test_case) {
+      list($path, $options, $expected_path) = $this->unpackTestCase($test_case);
+
+      // The expected path in case when global redirect is enabled, and the path
+      // was the frontpage, is to remove the front page prefix, so it's empty.
+      $expected_path_parts = explode('/', $expected_path);
+      array_shift($expected_path_parts);
+      $expected_path = implode('/', $expected_path_parts);
+      $raw_expected_path = $this->createRawUrl($expected_path, array());
+
+      // Make GET request and check the headers.
+      $this->drupalGet($path, $options);
+      $headers = $this->drupalGetHeaders(TRUE);
+
+      // First Global Redirect does it's own redirect, to a clean front page,
+      // but with the query parameters present in usual form.
+      $expected_redirect_path = $this->createRawUrl('', $options);
+      $result = array(
+        '!initial_path' => $path,
+        '!expected_status' => '301',
+        '!expected_path' => $expected_redirect_path,
+        '!actual_path' => isset($headers[0]['location']) ? $headers[0]['location'] : 'N/A',
+        '!actual_status' => $headers[0][':status'],
+      );
+      $this->assertStatusAndPath($result);
+
+      // Then we check for query parameters to url redirect, which redirects
+      // to the clean URL form.
+      $result = array(
+        '!initial_path' => $headers[0]['location'],
+        '!expected_status' => '302',
+        '!expected_path' => $raw_expected_path,
+        '!actual_path' => isset($headers[1]['location']) ? $headers[1]['location'] : 'N/A',
+        '!actual_status' => $headers[1][':status'],
+      );
+      $this->assertStatusAndPath($result);
+
+      // Then we get to the actual clean URL.
+      $result = array(
+        '!initial_path' => $headers[1]['location'],
+        '!expected_status' => '200',
+        '!expected_path' => $raw_expected_path,
+        '!actual_path' => $this->getUrl(),
+        '!actual_status' => $headers[2][':status'],
+      );
+      $this->assertStatusAndPath($result);
+    }
   }
 }
