@@ -24,6 +24,16 @@ function query_parameters_to_url_uninstall() {
 }
 
 /**
+ * Implements hook_enable().
+ */
+function query_parameters_to_url_enable() {
+  // Notify user that globalredirect might have problems with the module.
+  if (module_exists('globalredirect')) {
+    drupal_set_message(t('Because you have Global Redirect module installed, it might cause issues for the Query Parameters To URL module to work properly. Please file any problems you have to the issue queue.'), 'warning');
+  }
+}
+
+/**
  * Implements hook_requirements().
  */
 function query_parameters_to_url_requirements($phase) {
