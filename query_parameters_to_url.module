@@ -14,6 +14,7 @@ define('QUERY_PARAMETERS_TO_URL_QUERY_NESTED_VALUES_DELIMITER', 'query_parameter
 define('QUERY_PARAMETERS_TO_URL_PATH_REG_EXP', 'query_parameters_to_url_path_reg_exp');
 define('QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD', 'query_parameters_to_url_redirect_threshold');
 define('QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS', 'query_parameters_to_url_ignore_admin_paths');
+define('QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE', 'query_parameters_to_url_allow_rewritten_menu_item_save');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW', 'allow');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_DENY', 'deny');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_IGNORE', 'ignore');
@@ -110,6 +111,13 @@ function query_parameters_to_url_ignore_admin_paths() {
 }
 
 /**
+ * Returns the variable value if rewritten menu item saving should be enabled.
+ */
+function query_parameters_to_url_allow_rewritten_menu_item_save() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE, FALSE);
+}
+
+/**
  * Check whether given path should be rewritten.
  */
 function query_parameters_to_url_path_should_be_rewritten($path = '', $options = array(), $original_path = NULL, $path_language = NULL) {
@@ -196,6 +204,39 @@ function query_parameters_to_url_is_called_from_global_redirect_init() {
   else {
     $times_called_from_inside_global_redirect++;
   }
+  return $called;
+}
+
+/**
+ * Checks if the function is called from inside menu item edit admin callback.
+ *
+ * Necessary to be able to store rewritten urls in menu items.
+ */
+function query_parameters_to_url_is_called_from_menu_item_edit() {
+  $do_check = query_parameters_to_url_allow_rewritten_menu_item_save();
+  if (!$do_check) {
+    return FALSE;
+  }
+
+  $called = NULL;
+  if (!isset($called)) {
+    $called = FALSE;
+    // Save memory in the debug_backtrace() function when possible.
+    $options = (version_compare(PHP_VERSION, '5.3.6', '>=') ? DEBUG_BACKTRACE_IGNORE_ARGS : NULL);
+    $call_stack = debug_backtrace($options);
+    // Check whether the function is called from inside menu item edit.
+    foreach ($call_stack as $function) {
+      $functions = array(
+        'menu_edit_item_validate',
+        'i18n_prepare_normal_path',
+      );
+      $called = in_array($function['function'], $functions);
+      if ($called) {
+        break;
+      }
+    }
+  }
+
   return $called;
 }
 
@@ -324,6 +365,17 @@ function query_parameters_to_url_replace_url_encoded_delimiters($url) {
  */
 function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path_language) {
   if (variable_get(QUERY_PARAMETERS_TO_URL_ENABLED, TRUE)) {
+
+    // Don't rewrite URL, if trying to save a menu item with a rewritten URL.
+    // URLs with aliases or query parameters cannot be saved as a menu item.
+    // By not calling url_inbound_alter when saving the menu item path, we allow
+    // the rewritten URL to be saved to the database, which overcomes this
+    // limitation. This is a hack, and should not be used if possible.
+    // @see https://www.drupal.org/node/118072#comment-9492455
+    if (query_parameters_to_url_is_called_from_menu_item_edit()) {
+      return;
+    }
+
     $parts = explode('/', $path);
     $url_and_query_delimiter = query_parameters_to_url_url_query_delimiter();
 

@@ -95,6 +95,13 @@ function query_parameters_to_url_admin_settings() {
     '#default_value' => query_parameters_to_url_redirect_threshold(),
   ) + $default_options;
 
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Allow rewritten menu item save'),
+    '#description' => t('If this is checked, you will be able to save an encoded query parameter path as a menu item. Which means you can add a menu item with a path like <em>events/p/page/1</em>. For saving an encoded query parameter path for the front page, make sure you prepend the front page path, like <em>home/p/page/1</em>. <strong>This is an experimental feature.</strong>'),
+    '#default_value' => query_parameters_to_url_allow_rewritten_menu_item_save(),
+  ) + $default_options;
+
   return system_settings_form($form);
 }
 
