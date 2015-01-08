@@ -109,6 +109,14 @@ function query_parameters_to_url_admin_settings() {
     '#default_value' => query_parameters_to_url_allow_rewritten_menu_item_save(),
   ) + $default_options;
 
+  $form['advanced_settings'][QUERY_PARAMETERS_TO_URL_REDIRECT_STATUS_CODE] = array(
+    '#type' => 'select',
+    '#title' => t('HTTP code to use for redirects'),
+    '#description' => t('Choose which HTTP Code should be issued for redirects done by this module.'),
+    '#options' => query_parameters_to_url_status_code_options(),
+    '#default_value' => query_parameters_to_url_redirect_status_code(),
+  ) + $default_options;
+
   return system_settings_form($form);
 }
 

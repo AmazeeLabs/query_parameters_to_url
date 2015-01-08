@@ -16,6 +16,7 @@ define('QUERY_PARAMETERS_TO_URL_REDIRECT_THRESHOLD', 'query_parameters_to_url_re
 define('QUERY_PARAMETERS_TO_URL_IGNORE_ADMIN_PATHS', 'query_parameters_to_url_ignore_admin_paths');
 define('QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE', 'query_parameters_to_url_allow_rewritten_menu_item_save');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_HOOKS_ENABLED', 'query_parameters_to_url_rewrite_hooks_enabled');
+define('QUERY_PARAMETERS_TO_URL_REDIRECT_STATUS_CODE', 'query_parameters_to_url_redirect_status_code');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_ALLOW', 'allow');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_DENY', 'deny');
 define('QUERY_PARAMETERS_TO_URL_REWRITE_IGNORE', 'ignore');
@@ -123,6 +124,13 @@ function query_parameters_to_url_ignore_admin_paths() {
  */
 function query_parameters_to_url_allow_rewritten_menu_item_save() {
   return variable_get(QUERY_PARAMETERS_TO_URL_ALLOW_REWRITTEN_MENU_ITEM_SAVE, FALSE);
+}
+
+/**
+ * Returns the variable value of the HTTP status code for redirects.
+ */
+function query_parameters_to_url_redirect_status_code() {
+  return variable_get(QUERY_PARAMETERS_TO_URL_REDIRECT_STATUS_CODE, 302);
 }
 
 /**
@@ -625,13 +633,31 @@ function query_parameters_to_url_init() {
         // Inspired by redirect module, tell the browser where to redirect
         // and why.
         drupal_add_http_header('Location', $url);
-        drupal_add_http_header('Status', t('302 Found'));
+        $status_code = query_parameters_to_url_redirect_status_code();
+        $status_message = query_parameters_to_url_status_code_options($status_code);
+        drupal_add_http_header('Status', $status_message);
 
         // Output redirect, and cache it if necessary.
         query_parameters_to_url_output_and_cache_redirect($url);
       }
     }
   }
+}
+
+/**
+ * Returns an HTTP status code for redirects.
+ */
+function query_parameters_to_url_status_code_options($code = NULL) {
+  $codes = array(
+    300 => t('300 Multiple Choices'),
+    301 => t('301 Moved Permanently'),
+    302 => t('302 Found'),
+    303 => t('303 See Other'),
+    304 => t('304 Not Modified'),
+    305 => t('305 Use Proxy'),
+    307 => t('307 Temporary Redirect'),
+  );
+  return isset($codes[$code]) ? $codes[$code] : $codes;
 }
 
 /**
