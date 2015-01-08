@@ -310,6 +310,14 @@ class QueryParametersToURLUnitTestCase extends DrupalUnitTestCase {
   }
 
   /**
+   * Setup.
+   */
+  public function setUp() {
+    drupal_load('module', 'query_parameters_to_url');
+    parent::setUp();
+  }
+
+  /**
    * Returns a list of test cases.
    */
   public function getTestCases() {
