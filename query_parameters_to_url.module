@@ -423,6 +423,10 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
       }
 
       if (!empty($extracted_query_parameters)) {
+        // Save the initial inbound path to be used in the cache cid alter.
+        $inbound_path = &drupal_static(__FUNCTION__ . '_inbound_path', '');
+        $inbound_path = $path;
+
         // Remove the encoded query parameters in the path, and set it as the
         // inbound path.
         $path = implode('/', array_slice($parts, 0, $p_key));
@@ -725,4 +729,24 @@ function query_parameters_to_url_output_and_cache_redirect($url) {
     }
   }
   exit;
+}
+
+/**
+ * Implements hook_page_cache_object_alter().
+ */
+function query_parameters_to_url_page_cache_object_alter($cache) {
+  if (variable_get(QUERY_PARAMETERS_TO_URL_ENABLED, TRUE)) {
+    // Check whether the path was altered in inbound alter function, which means
+    // we should change the cache cid to match the initial inbound URL, instead
+    // of the rewritten Request URI.
+    $path_altered = &drupal_static('query_parameters_to_url_url_inbound_alter', FALSE);
+    if ($path_altered) {
+      $inbound_path = &drupal_static('query_parameters_to_url_url_inbound_alter_inbound_path', '');
+      if (!empty($inbound_path)) {
+        global $base_root;
+        $new_cid = $base_root . base_path() . $inbound_path;
+        $cache->cid = $new_cid;
+      }
+    }
+  }
 }

@@ -46,6 +46,7 @@ The following configuration options are present:
   This allows you renaming the query parameter keys and values to be shorter or more SEO friendly.
   See query_parameters_to_url.api.php for documentation and an example.
 * Experimental feature to allow saving menu items with rewritten URLs that contain encoded query parameters.
+* Enable caching of the rewritten URL pages by appling a patch to core.
 
 
 Usage
@@ -59,6 +60,18 @@ Example regular expressions:
 * "" (empty) - Disable query parameter rewriting on all Drupal paths.
 * "{^events|^news}" - Enable query parameter rewriting on all paths that start with events or news.
 * "{^node/([0-9]+)/(.+)}" - Enable query parameter rewriting on all node paths (view, edit, etc).
+
+Caching (how to fix)
+-------
+By default caching of rewritten URL pages will **NOT** work, because Drupal uses the Request URI as the key for the page 
+cache, but the URI is rewritten by this module to make it work with Views, Better Exposed Filters, and other potential
+modules. 
+
+To make caching work again, a patch has to be applied to Drupal core, that allows rewriting the page cache key.
+This patch can be found in patches/enhanced_page_cache-D7.34.patch or altenatively bundled with another module found at
+[Enhanced Page Cache](https://www.drupal.org/project/enhanced_page_cache). Once the patch is applied,
+the hook_page_cache_object_alter() will be picked up, and the rewritten page URL will be served from cache.
+The bundled patch is a re-roll against the latest stable version of drupal core, of the one bundled with module above.
 
 
 Implementation
