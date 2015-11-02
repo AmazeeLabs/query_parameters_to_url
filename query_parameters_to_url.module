@@ -487,8 +487,20 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // concatenated with all the query parameters present.
         // @ignore security_12
         if (isset($_SERVER['REQUEST_URI'])) {
+          // SERVER_URI contains the path prefix (e.g. language prefix) so let's
+          // make sure we add it to avoid a redirect loop
+          $options = array(
+            'query' => $query_parameters_without_q,
+            'absolute' => FALSE,
+            'prefix' => '',
+            'external' => FALSE,
+          );
+          drupal_alter('url_outbound', $request_uri_path, $options, $request_uri_path);
+          $prefix = rtrim($options['prefix'], '/');
+          $prefix = $prefix ? '/' . $prefix : '';
+
           $query_string = http_build_query($query_parameters_without_q, '');
-          $new_request_uri = $request_uri_path . '?' . $query_string;
+          $new_request_uri = $prefix . $request_uri_path . '?' . $query_string;
           // @TODO Is this really a sec hole? If so what can we do about it?
           // @ignore security_12
           $_SERVER['REQUEST_URI'] = $new_request_uri;
