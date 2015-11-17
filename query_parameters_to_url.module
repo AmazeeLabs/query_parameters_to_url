@@ -157,6 +157,11 @@ function query_parameters_to_url_path_should_be_rewritten($path = '', $options =
     $path = current_path();
   }
 
+  // If called from hook_url_inbound()
+  if (!empty($options['query_parameters_to_url_skip_url_outbound_alter'])) {
+    return FALSE;
+  }
+
   // Invoke hooks to see if any module allows or denies a rewrite for the given
   // path.
   $additional_paths_hooks_enabled = &drupal_static(__FUNCTION__, query_parameters_to_url_additional_paths_hooks_enabled());
@@ -431,6 +436,12 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // inbound path.
         $path = implode('/', array_slice($parts, 0, $p_key));
 
+
+        // Lookup the path alias
+        if ($source = drupal_lookup_path('source', $path, $path_language)) {
+          $path = $source;
+        }
+
         // Make a copy of the path for the request_uri, before the front page
         // check, so that the request URI has the empty string path, to make
         // sure global redirect module doesn't cause endless redirect loops,
@@ -438,15 +449,6 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
         // always seeing that request uri isn't empty, when it actually expects
         // it to be empty for the front page.
         $request_uri_path = $path;
-
-        // Make sure to prepend the base path to the request URI, in case the
-        // Drupal environment is not a virtual host, but rather a sub-folder
-        // of the main domain. This also fixes endless redirect loops, when
-        // Global Redirect is enabled.
-        $base_path = base_path();
-        if (!empty($base_path)) {
-          $request_uri_path = $base_path . $request_uri_path;
-        }
 
         // If path is empty, make sure to set it to the actual front page path,
         // because otherwise Drupal can't find the proper menu item, and returns
@@ -494,10 +496,28 @@ function query_parameters_to_url_url_inbound_alter(&$path, $original_path, $path
             'absolute' => FALSE,
             'prefix' => '',
             'external' => FALSE,
+            'query_parameters_to_url_skip_url_outbound_alter' => TRUE,
           );
           drupal_alter('url_outbound', $request_uri_path, $options, $request_uri_path);
           $prefix = rtrim($options['prefix'], '/');
           $prefix = $prefix ? '/' . $prefix : '';
+
+
+          // Use the alias if available so Global redirect will not cause a redirect
+          // loop
+          $alias = drupal_get_path_alias($request_uri_path, $path_language);
+          if ($alias != $request_uri_path) {
+            $request_uri_path = $alias;
+          }
+
+          // Make sure to prepend the base path to the request URI, in case the
+          // Drupal environment is not a virtual host, but rather a sub-folder
+          // of the main domain. This also fixes endless redirect loops, when
+          // Global Redirect is enabled.
+          $base_path = base_path();
+          if (!empty($base_path)) {
+            $request_uri_path = $base_path . $request_uri_path;
+          }
 
           $query_string = http_build_query($query_parameters_without_q, '');
           $new_request_uri = $prefix . $request_uri_path . '?' . $query_string;
@@ -636,6 +656,15 @@ function query_parameters_to_url_init() {
       // Skip the global redirect check, because we know this is not called
       // from globalredirect_init().
       $options['skip_global_redirect'] = TRUE;
+
+      // Use the path alias if available. It might not be the 100% correct, but
+      // query_parameters_to_url_url_outbound_alter() will work just fine even
+      // with aliases. To make this work, aliases have to be added to the regular
+      // expression that matches paths
+      $alias = drupal_get_path_alias($path);
+      if ($alias != $path) {
+        $path = $alias;
+      }
 
       // Try and rewrite the path.
       query_parameters_to_url_url_outbound_alter($path, $options, $path);
