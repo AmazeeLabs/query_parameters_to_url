@@ -651,6 +651,12 @@ function query_parameters_to_url_init() {
       $path = $original_path;
       $options = array(
         'query' => $original_query_parameters,
+        // default values expected by other modules
+        'external' => FALSE,
+        'fragment' => '',
+        'absolute' => FALSE,
+        'alias' => FALSE,
+        'prefix' => ''
       );
 
       // Skip the global redirect check, because we know this is not called
@@ -664,17 +670,19 @@ function query_parameters_to_url_init() {
       $alias = drupal_get_path_alias($path);
       if ($alias != $path) {
         $path = $alias;
+        $options['alias'] = TRUE;
       }
 
       // Try and rewrite the path.
-      query_parameters_to_url_url_outbound_alter($path, $options, $path);
+      drupal_alter('url_outbound', $path, $options, $original_path);
+      $prefix = isset($options['prefix']) ? $options['prefix'] : '';
 
       // Make sure to remove any left slashes, if the path was empty, because
       // it was the front page path.
       $path = ltrim($path, '/');
 
       // If the path indeed was changed, we redirect to the new path.
-      if ($path != $original_path) {
+      if ($path != $original_path && request_path() != $prefix . $path) {
         $options['absolute'] = TRUE;
         $url = url($path, $options);
         $url = query_parameters_to_url_replace_url_encoded_delimiters($url);
