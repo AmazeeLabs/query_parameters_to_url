@@ -667,10 +667,12 @@ function query_parameters_to_url_init() {
       // query_parameters_to_url_url_outbound_alter() will work just fine even
       // with aliases. To make this work, aliases have to be added to the regular
       // expression that matches paths
-      $alias = drupal_get_path_alias($path);
-      if ($alias != $path) {
-        $path = $alias;
-        $options['alias'] = TRUE;
+      if (!drupal_is_front_page()) {
+        $alias = drupal_get_path_alias($path);
+        if ($alias != $path) {
+          $path = $alias;
+          $options['alias'] = TRUE;
+        }
       }
 
       // Try and rewrite the path.
