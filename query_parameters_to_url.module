@@ -577,6 +577,19 @@ function query_parameters_to_url_url_outbound_alter(&$path, &$options, $original
         // Make sure to trim the rightmost slashes, so double slashes don't
         // occur in the path.
         $new_path_no_delimiter = rtrim($path, '/');
+
+        // If the original path has an alias, then the path we construct here
+        // will be basically just overwritten by the url() function. See the
+        // common.inc file, around line 2285. To prevent this, we already search
+        // here for the path alias, use it, and set the alias flag in the
+        // options array to TRUE so that the url() will ignore its check.
+        $language = isset($options['language']) && isset($options['language']->language) ? $options['language']->language : '';
+        $alias = drupal_get_path_alias($new_path_no_delimiter, $language);
+        if ($alias != $new_path_no_delimiter) {
+          $new_path_no_delimiter = $alias;
+        }
+        $options['alias'] = TRUE;
+
         $new_path = $new_path_no_delimiter . '/' . $url_and_query_delimiter;
 
         if (query_parameters_to_url_rewrite_hooks_enabled()) {
